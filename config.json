@@ -1,9 +1,9 @@
 {
   "mode": "DEBUG",
   "FPS": 5,
-  "PORT": 6,
-  "BAUDRATE": 38400,
+  "PORT": 8,
+  "BAUDRATE": 9600,
   "TEMPERATURE": -80,
-  "FOLDER": "C:\\Users\\optical group\\Desktop\\data",
+  "FOLDER": "C:\\Users\\Raman\\Desktop\\Scan",
   "COSMICRAYREMOVAL": true
 }

@@ -7,7 +7,7 @@ from kivy_garden.graph import Graph, LinePlot, ContourPlot
 from kivy.config import Config
 Config.set('graphics', 'width', '1200')
 Config.set('graphics', 'height', '600')
-from kivy.core.window import Window, Clock
+from kivy.core.window import Window
 from CircularProgressBar import CircularProgressBar
 
 import os
@@ -21,7 +21,6 @@ import time
 import serial
 import threading
 from ConfigLoader import ConfigLoader
-from hsc103controller import HSC103Controller
 from utils import remove_cosmic_ray
 
 
@@ -48,9 +47,9 @@ class ErrorDialogContent(FloatLayout):
 
 class RASDriver(BoxLayout):
     current_temperature = NumericProperty(0)
-    start_pos = ObjectProperty(np.zeros(3), force_dispatch=True)
-    current_pos = ObjectProperty(np.zeros(3), force_dispatch=True)
-    goal_pos = ObjectProperty(np.zeros(3), force_dispatch=True)
+    start_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
+    current_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
+    goal_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
     progress_value_acquire = NumericProperty(0)
     progress_value_scan = NumericProperty(0)
     # 露光時間
@@ -154,11 +153,11 @@ class RASDriver(BoxLayout):
         if self.cl.mode == 'RELEASE':
             self.sdk = atmcd()
             self.ser = serial.Serial(self.cl.port, self.cl.baudrate, write_timeout=0)
-            self.hsc = HSC103Controller(self.ser)
+            # self.hsc = HSC103Controller(self.ser)
         elif self.cl.mode == 'DEBUG':
             self.sdk = None
             self.ser = None
-            self.hsc = HSC103Controller(self.ser)
+            # self.hsc = HSC103Controller(self.ser)
         else:
             raise ValueError('Error with config.json. mode must be DEBUG or RELEASE.')
 
@@ -231,7 +230,7 @@ class RASDriver(BoxLayout):
 
     def clear_things(self):
         self.ydata = np.empty([0, self.xpixels])
-        self.coord = np.empty([0, 3])
+        self.coord = np.empty([0, 2])
         self.lineplot.points = []
 
     def initialize(self):
@@ -304,22 +303,22 @@ class RASDriver(BoxLayout):
         # 別スレッド内で動き続ける
         # たまに座標の更新に数秒~10数秒のラグがあるのはなぜ？
         while True:
-            self.hsc.get_position()
-            msg = self.hsc.recv()
-
-            try:
-                pos_list = list(map(lambda x: int(x) * self.hsc.um_per_pulse, msg.split(',')))
-            except ValueError:
-                print(msg)
-                time.sleep(self.cl.dt)
-                continue
-
-            self.current_pos = np.array(pos_list)
+            # self.hsc.get_position()
+            # msg = self.hsc.recv()
+            #
+            # try:
+            #     pos_list = list(map(lambda x: int(x) * self.hsc.um_per_pulse, msg.split(',')))
+            # except ValueError:
+            #     print(msg)
+            #     time.sleep(self.cl.dt)
+            #     continue
+            #
+            # self.current_pos = np.array(pos_list)
             time.sleep(self.cl.dt)
 
-    def go(self, x, y, z):
+    def go(self, x, y):
         try:
-            pos = np.array([x, y, z], float)
+            pos = np.array([x, y], float)
         except ValueError:
             self.msg = 'invalid value.'
             return
@@ -545,13 +544,12 @@ class RASDriver(BoxLayout):
                 cosmic_ray[np.random.randint(0, self.xpixels)] = 100
                 spec += noise + cosmic_ray
                 self.ydata = np.append(self.ydata, spec, axis=0)
-            self.coord = np.append(self.coord, self.current_pos.reshape([1, 3]), axis=0)
+            self.coord = np.append(self.coord, self.current_pos.reshape([1, 2]), axis=0)
             self.update_graph_line()
 
             self.progress_value_acquire = i + 1
 
         if not during_scan:
-            Clock.unschedule(self.clock_schedule_acquire)
             self.activate_buttons()
             self.msg = 'Acquisition finished.'
             self.saved_previous = False
@@ -570,10 +568,10 @@ class RASDriver(BoxLayout):
         self.disable_buttons()
         # for instruments
         self.prepare_acquisition()
-        self.hsc.set_speed_max()
-        self.hsc.move_abs(self.start_pos)
-        distance = np.max(self.current_pos - self.start_pos)
-        time.sleep(distance / self.hsc.max_speed + 1)
+        # self.hsc.set_speed_max()
+        # self.hsc.move_abs(self.start_pos)
+        # distance = np.max(self.current_pos - self.start_pos)
+        # time.sleep(distance / self.hsc.max_speed + 1)
 
         return True
 
@@ -586,9 +584,9 @@ class RASDriver(BoxLayout):
             if abs(self.actual_interval) > 0:
                 point = self.start_pos + (self.goal_pos - self.start_pos) * i / (self.actual_num_pos - 1)
                 if self.cl.mode == 'RELEASE':
-                    self.hsc.move_abs(point)
+                    # self.hsc.move_abs(point)
                     distance = np.max(self.current_pos - self.start_pos)
-                    time.sleep(distance / self.hsc.max_speed + 1)
+                    # time.sleep(distance / self.hsc.max_speed + 1)
                 elif self.cl.mode == 'DEBUG':
                     self.current_pos = point
 
@@ -622,7 +620,6 @@ class RASDriver(BoxLayout):
             f.write(f'# num_pos: {use_num_pos} {self.num_pos}\n')
             f.write(f'pos_x,{",".join(self.coord[:, 0].astype(str))}\n')
             f.write(f'pos_y,{",".join(self.coord[:, 1].astype(str))}\n')
-            f.write(f'pos_z,{",".join(self.coord[:, 2].astype(str))}\n')
             for x, y in zip(self.xdata.astype(str), self.ydata.T.astype(str)):
                 f.write(f'{x},{",".join(y)}\n')
 
