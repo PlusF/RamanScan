@@ -57,15 +57,7 @@ class RASDriver(BoxLayout):
     # 積算回数
     accumulation = ObjectProperty(3)
     # 測定間隔(距離）
-    interval = ObjectProperty(50)
-    # num_posを指定したときの実際の測定間隔
-    actual_interval = ObjectProperty(50)
-    # 測定する位置の数
-    num_pos = ObjectProperty(10)
-    # intervalを指定したときの実際の測定位置の数
-    actual_num_pos = ObjectProperty(10)
-    # 測定間のスリープ時間
-    sleep_sec = ObjectProperty(0)
+    pixel_size = ObjectProperty(1)
     msg = StringProperty('Please initialize the detector.')
 
     def __init__(self, **kwargs):
@@ -82,15 +74,15 @@ class RASDriver(BoxLayout):
 
         self.xdata = np.array([])
         self.ydata = np.array([])
-        self.coord = np.array([])
+        self.coord_x = np.array([])
+        self.coord_y = np.array([])
 
         # 測定開始可能かどうかのフラグ
         self.validate_state_dict = {
             'temperature': False,
             'integration': True,
             'accumulation': True,
-            'interval': True,
-            'num_pos': True,
+            'pixel_size': True,
         }
 
         self.create_graph()
@@ -135,17 +127,17 @@ class RASDriver(BoxLayout):
 
         # for mapping
         self.graph_contour = Graph(
-            xlabel='Pixel number', ylabel='Position',
-            xmin=0, xmax=1023, ymin=0, ymax=9,
-            x_ticks_major=100, x_ticks_minor=2, y_ticks_major=5,
+            xlabel='x pixel', ylabel='y pixel',
+            xmin=0, xmax=10, ymin=0, ymax=10,
+            x_ticks_major=10, x_ticks_minor=1, y_ticks_major=5,
             x_grid_label=True, y_grid_label=True,
         )
         self.ids.graph_contour.add_widget(self.graph_contour)
         self.contourplot = ContourPlot()
         self.graph_contour.add_plot(self.contourplot)
-        self.contourplot.xrange = (0, 1023)
-        self.contourplot.yrange = (0, 9)
-        self.contourplot.data = np.arange(0, 10).reshape([10, 1]) * np.ones([10, 1024])
+        self.contourplot.xrange = (0, 10)
+        self.contourplot.yrange = (0, 10)
+        self.contourplot.data = np.arange(0, 10).reshape([10, 1]) * np.ones([1, 10])
         self.contourplot.draw()
 
     def open_ports(self):
@@ -189,29 +181,6 @@ class RASDriver(BoxLayout):
         self.thread_scan.daemon = True
         self.thread_scan.start()
 
-    def set_interval_or_num_pos(self):
-        # スキャンの前にintervalまたはnum_posの値が正しいか確認
-        use_interval = self.ids.toggle_interval.state == 'down'
-        use_num_pos = self.ids.toggle_num_pos.state == 'down'
-        if use_interval:
-            if self.interval == 0:
-                self.msg = 'Check the num_pos value again.'
-                self.error_dialog.open()
-                return False
-            # interval指定でscanするときは、num_posが2以上にならなければいけない
-            self.actual_num_pos = int(np.linalg.norm(self.goal_pos - self.start_pos) // self.interval + 1)
-            if self.actual_num_pos <= 1:
-                self.msg = 'Check the interval value again.'
-                self.error_dialog.open()
-                return False
-            self.actual_interval = self.interval
-        elif use_num_pos:
-            # num_pos指定の場合は同じ場所で何回も取得することを許す
-            self.actual_num_pos = self.num_pos
-            self.actual_interval = np.linalg.norm(self.goal_pos - self.start_pos) / self.actual_num_pos
-
-        return True
-
     def disable_buttons(self):
         # 測定中はボタンを押させない
         self.ids.button_acquire.disabled = True
@@ -227,11 +196,6 @@ class RASDriver(BoxLayout):
         self.ids.button_set_start.disabled = False
         self.ids.button_set_goal.disabled = False
         self.ids.button_go.disabled = False
-
-    def clear_things(self):
-        self.ydata = np.empty([0, self.xpixels])
-        self.coord = np.empty([0, 2])
-        self.lineplot.points = []
 
     def initialize(self):
         # 初期化
@@ -249,10 +213,10 @@ class RASDriver(BoxLayout):
         self.create_and_start_thread_cooling()
 
         if self.cl.mode == 'RELEASE':
-            ret, self.xpixels, ypixels = self.sdk.GetDetector()
+            ret, self.size_xdata, ypixels = self.sdk.GetDetector()
             self.sdk.handle_return(ret)
         elif self.cl.mode == 'DEBUG':
-            self.xpixels = 1024
+            self.size_xdata = 1024
 
     def update_temperature(self):
         # detectorの温度を監視し、規定の温度に下がっていれば
@@ -269,19 +233,19 @@ class RASDriver(BoxLayout):
         self.validate_state_dict['temperature'] = True
         self.check_if_ready()
 
-    def update_graph_line(self):
+    def update_graph_line(self, ydata):
         # スペクトルを表示
         # TODO: show the spectrum accumulated
-        ydata = self.ydata
         if self.cl.cosmic_ray_removal:
             ydata = remove_cosmic_ray(ydata)
 
-        self.xdata = np.arange(0, self.xpixels, 1)
+        self.xdata = np.arange(0, self.size_xdata, 1)
+        self.lineplot.points = [(x, y) for x, y in zip(self.xdata, ydata)]
         self.graph_line.xmin = float(np.min(self.xdata))
         self.graph_line.xmax = float(np.max(self.xdata))
-        self.graph_line.ymin = float(np.min(ydata[-1]))
-        self.graph_line.ymax = float(max(np.max(ydata[-1]), np.min(ydata[-1]) + 0.1))
-        self.lineplot.points = [(x, y) for x, y in zip(self.xdata, ydata[-1])]
+        self.graph_line.ymin = float(np.min(ydata))
+        self.graph_line.ymax = float(max(np.max(ydata), np.min(ydata) + 0.1))
+        self.graph_line.y_ticks_major = float(np.max(ydata) - np.min(ydata)) / 5
 
     def update_graph_contour(self):
         # マップを表示
@@ -290,19 +254,19 @@ class RASDriver(BoxLayout):
         if self.cl.cosmic_ray_removal:
             map_data = remove_cosmic_ray(map_data)
 
-        self.xdata = np.arange(0, self.xpixels, 1)
-        self.graph_contour.xmax = self.xpixels - 1
-        self.graph_contour.ymax = self.actual_num_pos * self.accumulation - 1
-        self.contourplot.xrange = (0, self.xpixels - 1)
-        self.contourplot.yrange = (0, len(self.ydata) - 1)
+        self.xdata = np.arange(0, self.size_xdata, 1)
+        self.graph_contour.xmax = self.ydata.shape[1]
+        self.graph_contour.ymax = self.ydata.shape[0]
+        self.contourplot.xrange = (0, self.ydata.shape[1])
+        self.contourplot.yrange = (0, self.ydata.shape[0])
 
-        # なぜかわからないが[::-1]しないと正しく表示されない
-        self.contourplot.data = map_data.reshape(self.ydata.shape[::-1])
+        self.contourplot.data = self.ydata.sum(axis=3).sum(axis=2).T.reshape(self.ydata.shape[:2])
 
     def update_position(self):
         # 別スレッド内で動き続ける
         # たまに座標の更新に数秒~10数秒のラグがあるのはなぜ？
         while True:
+            # TODO:
             # self.hsc.get_position()
             # msg = self.hsc.recv()
             #
@@ -356,15 +320,9 @@ class RASDriver(BoxLayout):
 
     def check_if_ready(self):
         # 全ての値が正しければacquireボタンとscanボタンを使えるように
-        # interval指定駆動の時，intervalの値が正しい必要があるが，num_posは正しくなくても良い．逆もしかり．
-        use_interval = self.ids.toggle_interval.state == 'down'
-        use_num_pos = self.ids.toggle_num_pos.state == 'down'
-        interval_ok = (not use_interval) or (use_interval and self.validate_state_dict['interval'])
-        num_pos_ok = (not use_num_pos) or (use_num_pos and self.validate_state_dict['num_pos'])
-        keys_else = [key for key in self.validate_state_dict.keys() if key not in ['interval', 'num_pos']]
-        else_ok = all([self.validate_state_dict[key] for key in keys_else])
+        ok = all(self.validate_state_dict.values())
 
-        if interval_ok and num_pos_ok and else_ok:
+        if ok:
             self.ids.button_acquire.disabled = False
             self.ids.button_scan.disabled = False
         else:
@@ -387,49 +345,12 @@ class RASDriver(BoxLayout):
             validate=lambda x: x >= 1
         )
 
-    def set_interval(self, val):
-        self.ids.toggle_interval.state = 'down'
-        self.apply_interval()
+    def set_pixel_size(self, val):
         self.set_param(
-            name='interval',
+            name='pixel_size',
             val=val,
             dtype=float,
-            validate=lambda x: x > 0
-        )
-
-    def set_num_pos(self, val):
-        self.ids.toggle_num_pos.state = 'down'
-        self.apply_num_pos()
-        self.set_param(
-            name='num_pos',
-            val=val,
-            dtype=int,
-            validate=lambda x: x > 0)
-
-    def apply_interval(self):
-        # interval側がオンの時はnum_pos側はオフ
-        state = self.ids.toggle_interval.state
-        if state == 'down':
-            self.ids.toggle_num_pos.state = 'normal'
-        elif state == 'normal':
-            self.ids.toggle_num_pos.state = 'down'
-        self.check_if_ready()
-
-    def apply_num_pos(self):
-        # num_pos側がオンの時はinterval側はオフ
-        state = self.ids.toggle_num_pos.state
-        if state == 'down':
-            self.ids.toggle_interval.state = 'normal'
-        elif state == 'normal':
-            self.ids.toggle_interval.state = 'down'
-        self.check_if_ready()
-
-    def set_sleep_sec(self, val):
-        self.set_param(
-            name='sleep_sec',
-            val=val,
-            dtype=float,
-            validate=lambda x: x >= 0
+            validate=lambda x: x > 0.1
         )
 
     def create_yesno_dialog(self, title, message, yes_func):
@@ -451,7 +372,6 @@ class RASDriver(BoxLayout):
                 message='Previous data is not saved.\nOK?',
                 yes_func=self.confirm_acquire_condition,
             )
-            # self.unsaved_dialog_acquire.open()
             return
         self.confirm_acquire_condition()
 
@@ -470,14 +390,9 @@ class RASDriver(BoxLayout):
         return 'Integration: {} sec\nAccumulation: {}'.format(self.integration, self.accumulation)
 
     def get_condition_str_scan(self):
-        if self.ids.toggle_interval.state == 'down':
-            return 'Integration: {} sec\nAccumulation: {}\nInterval: {} um'.format(
-                self.integration, self.accumulation, self.interval
-            )
-        else:
-            return 'Integration: {} sec\nAccumulation: {}\nNumber of positions: {}'.format(
-                self.integration, self.accumulation, self.num_pos
-            )
+        return 'Integration: {} sec\nAccumulation: {}\nPixel size: {}'.format(
+            self.integration, self.accumulation, self.pixel_size
+        )
 
     def confirm_acquire_condition(self):
         # 保存の確認ダイアログが開いていたら閉じる
@@ -513,7 +428,7 @@ class RASDriver(BoxLayout):
 
     def prepare_acquisition(self):
         # for GUI
-        self.clear_things()
+        self.lineplot.points = []
         self.disable_buttons()
         self.ids.progress_acquire.max = self.accumulation
         self.progress_value_acquire = 0
@@ -527,44 +442,45 @@ class RASDriver(BoxLayout):
         elif self.cl.mode == 'DEBUG':
             print('prepare acquisition')
 
-    def acquire(self, during_scan=False):
-        for i in range(self.accumulation):
+        self.ydata = np.zeros([1, 1, self.accumulation, self.size_xdata])
+
+    def acquire(self, during_scan=False, i=0, j=0):
+        ydata = np.empty([0, self.size_xdata])
+        for k in range(self.accumulation):
             if self.cl.mode == 'RELEASE':
                 self.sdk.handle_return(self.sdk.StartAcquisition())
                 self.sdk.handle_return(self.sdk.WaitForAcquisition())
-                ret, spec, first, last = self.sdk.GetImages16(1, 1, self.xpixels)
-                self.ydata = np.append(self.ydata, np.array([spec]), axis=0)
+                ret, spec, first, last = self.sdk.GetImages16(1, 1, self.size_xdata)
+                ydata = np.append(ydata, np.array(spec), axis=0)
                 self.sdk.handle_return(ret)
             elif self.cl.mode == 'DEBUG':
                 time.sleep(self.integration)
-                print(f'acquired {i + 1}')
-                spec = np.expand_dims(np.sin(np.linspace(-np.pi, np.pi, self.xpixels)), axis=0) * np.random.randint(1, 10)
-                noise = np.random.random(self.xpixels) * 10
-                cosmic_ray = np.zeros(self.xpixels)
-                cosmic_ray[np.random.randint(0, self.xpixels)] = 100
+                print(f'acquired {k + 1}')
+                spec = np.expand_dims(np.sin(np.linspace(-np.pi, np.pi, self.size_xdata)), axis=0) * np.random.randint(1, 10)
+                noise = np.random.random(self.size_xdata) * 10
+                cosmic_ray = np.zeros(self.size_xdata)
+                cosmic_ray[np.random.randint(0, self.size_xdata)] = 100
                 spec += noise + cosmic_ray
-                self.ydata = np.append(self.ydata, spec, axis=0)
-            self.coord = np.append(self.coord, self.current_pos.reshape([1, 2]), axis=0)
-            self.update_graph_line()
+                ydata = np.append(ydata, np.array(spec), axis=0)
+            self.update_graph_line(ydata.sum(axis=0))  # show accumulated spectrum
 
-            self.progress_value_acquire = i + 1
+            self.progress_value_acquire = k + 1
 
-        if not during_scan:
+        self.ydata[i, j] = ydata
+
+        if not during_scan:  # finalize acquisition
+            self.coord_x = np.array([self.current_pos[0]])
+            self.coord_y = np.array([self.current_pos[1]])
             self.activate_buttons()
             self.msg = 'Acquisition finished.'
             self.saved_previous = False
             self.ids.button_save.disabled = False
 
     def prepare_scan(self):
-        ok = self.set_interval_or_num_pos()
-        if not ok:
-            return False
         # for GUI
-        self.clear_things()
         black = np.zeros([1024, 1024])
         black[0, 0] = 1
         self.contourplot.data = black
-        self.ids.progress_scan.max = self.actual_num_pos
         self.disable_buttons()
         # for instruments
         self.prepare_acquisition()
@@ -573,30 +489,45 @@ class RASDriver(BoxLayout):
         # distance = np.max(self.current_pos - self.start_pos)
         # time.sleep(distance / self.hsc.max_speed + 1)
 
+        # 座標計算
+        arr_x = np.arange(self.start_pos[0], self.goal_pos[0], self.pixel_size)
+        arr_y = np.arange(self.start_pos[1], self.goal_pos[1], self.pixel_size)
+        self.coord_x, self.coord_y = np.meshgrid(arr_x, arr_y, indexing='ij')
+        if self.coord_x.shape[0] == 0:
+            self.error_dialog.open()
+            self.activate_buttons()
+            self.check_if_ready()
+            return False
+        self.ids.progress_scan.max = self.coord_x.shape[0] * self.coord_x.shape[1]
+        
+        # データ格納用numpy配列用意
+        self.ydata = np.zeros([*self.coord_x.shape, self.accumulation, self.size_xdata])
+
         return True
 
     def scan(self):
-        for i in range(self.actual_num_pos):
-            time_left = np.ceil((self.actual_num_pos - i) * (self.integration * self.accumulation + self.sleep_sec) / 60)
-            self.msg = f'Acquisition {i + 1} of {self.actual_num_pos}... {time_left} minutes left. (interval: {self.actual_interval})'
+        num_pos = self.coord_x.shape[0] * self.coord_x.shape[1]
+        num_done = 0
+        for i, (col_x, col_y) in enumerate(zip(self.coord_x, self.coord_y)):
+            for j, (pos_x, pos_y) in enumerate(zip(col_x, col_y)):
+                coord = np.array([pos_x, pos_y])
+                print(coord)
+                time_left = np.ceil((num_pos - i) * (self.integration * self.accumulation) / 60)
+                self.msg = f'Acquisition {num_done + 1} of {num_pos}... {time_left} minutes left.'
 
-            # 移動が必要なとき(同じ場所での測定では移動はいらない)
-            if abs(self.actual_interval) > 0:
-                point = self.start_pos + (self.goal_pos - self.start_pos) * i / (self.actual_num_pos - 1)
                 if self.cl.mode == 'RELEASE':
-                    # self.hsc.move_abs(point)
-                    distance = np.max(self.current_pos - self.start_pos)
+                    # self.hsc.move_abs(coord)
+                    distance = np.linalg.norm(coord - self.current_pos)
                     # time.sleep(distance / self.hsc.max_speed + 1)
                 elif self.cl.mode == 'DEBUG':
-                    self.current_pos = point
+                    self.current_pos = coord
 
-            self.acquire(during_scan=True)
-            self.update_graph_contour()
+                self.acquire(during_scan=True, i=i, j=j)
+                print(self.ydata.sum(axis=3).sum(axis=2))
+                self.update_graph_contour()
 
-            self.progress_value_scan = i + 1
-
-            self.msg = f'Sleeping... ({i + 1}/{self.actual_num_pos}, {time_left} minutes left.)'
-            time.sleep(self.sleep_sec)
+                num_done += 1
+                self.progress_value_scan = num_done
 
         # 終了処理
         self.activate_buttons()
@@ -614,14 +545,14 @@ class RASDriver(BoxLayout):
             f.write(f'# time: {now.strftime("%Y-%m-%d-%H-%M")}\n')
             f.write(f'# integration: {self.integration}\n')
             f.write(f'# accumulation: {self.accumulation}\n')
-            use_interval = self.ids.toggle_interval.state == 'down'
-            use_num_pos = self.ids.toggle_num_pos.state == 'down'
-            f.write(f'# interval: {use_interval} {self.interval}\n')
-            f.write(f'# num_pos: {use_num_pos} {self.num_pos}\n')
-            f.write(f'pos_x,{",".join(self.coord[:, 0].astype(str))}\n')
-            f.write(f'pos_y,{",".join(self.coord[:, 1].astype(str))}\n')
-            for x, y in zip(self.xdata.astype(str), self.ydata.T.astype(str)):
-                f.write(f'{x},{",".join(y)}\n')
+            f.write(f'# pixel_size: {self.pixel_size}\n')
+            f.write(f'# shape: {",".join(map(str, self.coord_x.shape))}\n')
+            f.write(f'pos_x,{",".join(np.ravel(self.coord_x).astype(str))}\n')
+            f.write(f'pos_y,{",".join(np.ravel(self.coord_y).astype(str))}\n')
+            for col in self.ydata:
+                for accumulated_y in col:
+                    for y in accumulated_y:
+                        f.write(','.join(y.astype(str)) + '\n')
 
         self.save_dialog.dismiss()
         self.saved_previous = True
