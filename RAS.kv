@@ -199,6 +199,11 @@
             text: 'Save'
             size_hint_y: 0.2
             on_release: root.save_dialog.open()
+        Button:
+            id: button_save_as_hdf5
+            text: 'Save as HDF5'
+            size_hint_y: 0.2
+            on_release: root.save_as_hdf5_dialog.open()
 
     BoxLayout:
         orientation: 'vertical'

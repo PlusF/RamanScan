@@ -3,3 +3,4 @@ kivy_garden.graph==0.4.0
 numpy
 pyserial==3.5
 git+https://github.com/PlusF/HSC103Controller
+git+https://github.com/PlusF/DataLoader

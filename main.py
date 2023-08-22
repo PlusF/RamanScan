@@ -16,6 +16,7 @@ if os.name == 'nt':
 else:  # Macで開発する際エラーが出ないようにする
     atmcd = atmcd_codes = atmcd_errors = None
 import numpy as np
+from dataloader import RamanHDFWriter
 import datetime
 import time
 import serial
@@ -107,6 +108,7 @@ class RASDriver(BoxLayout):
         self.ids.button_acquire.disabled = True
         self.ids.button_scan.disabled = True
         self.ids.button_save.disabled = True
+        self.ids.button_save_as_hdf5.disabled = True
 
         self.saved_previous = True
         self.save_dialog = Popup(
@@ -114,6 +116,14 @@ class RASDriver(BoxLayout):
             content=SaveDialogContent(
                 save=self.save,
                 cancel=lambda: self.save_dialog.dismiss(),
+                folder=self.folder),
+            size_hint=(0.9, 0.9)
+        )
+        self.save_as_hdf5_dialog = Popup(
+            title="Save file as HDF5",
+            content=SaveDialogContent(
+                save=self.save_as_hdf5,
+                cancel=lambda: self.save_as_hdf5_dialog.dismiss(),
                 folder=self.folder),
             size_hint=(0.9, 0.9)
         )
@@ -507,6 +517,7 @@ class RASDriver(BoxLayout):
             self.msg = 'Acquisition finished.'
             self.saved_previous = False
             self.ids.button_save.disabled = False
+            self.ids.button_save_as_hdf5.disabled = False
 
     def prepare_scan(self):
         # for GUI
@@ -563,14 +574,15 @@ class RASDriver(BoxLayout):
         self.activate_buttons()
         self.saved_previous = False
         self.ids.button_save.disabled = False
+        self.ids.button_save_as_hdf5.disabled = False
         self.msg = 'Scan finished.'
 
-    def save(self, path, filename):
+    def save(self, folder, filename):
         filename = os.path.basename(filename)
         if '.txt' not in filename:
             filename += '.txt'
 
-        with open(os.path.join(path, filename), 'w') as f:
+        with open(os.path.join(folder, filename), 'w') as f:
             now = datetime.datetime.now()
             f.write(f'# time: {now.strftime("%Y-%m-%d-%H-%M")}\n')
             f.write(f'# integration: {self.integration}\n')
@@ -586,8 +598,38 @@ class RASDriver(BoxLayout):
 
         self.save_dialog.dismiss()
         self.saved_previous = True
-        self.save_dialog.folder = path
-        self.msg = f'Successfully saved to "{os.path.join(path, filename)}".'
+        self.save_dialog.folder = folder
+        self.save_as_hdf5_dialog.folder = folder
+        self.msg = f'Successfully saved to "{os.path.join(folder, filename)}".'
+
+    def save_as_hdf5(self, folder, filename):
+        filename = os.path.basename(filename)
+        if '.fdf5' not in filename:
+            filename += '.hdf5'
+
+        writer = RamanHDFWriter(os.path.join(folder, filename))
+        writer.create_attr('time', datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
+        writer.create_attr('integration', self.integration)
+        writer.create_attr('accumulation', self.accumulation)
+        writer.create_attr('pixel_size', self.pixel_size)
+        writer.create_attr('shape', self.coord_x.shape)
+        writer.create_attr('x_start', self.start_pos[0])
+        writer.create_attr('y_start', self.start_pos[1])
+        writer.create_attr('x_pad', self.pixel_size)
+        writer.create_attr('y_pad', self.pixel_size)
+        writer.create_attr('x_span', self.goal_pos[0] - self.start_pos[0])
+        writer.create_attr('y_span', self.goal_pos[1] - self.start_pos[1])
+        writer.create_dataset('pos_x', self.coord_x)
+        writer.create_dataset('pos_y', self.coord_y)
+        writer.create_dataset('xdata', self.xdata)
+        writer.create_dataset('spectra', self.ydata)
+        writer.close()
+
+        self.save_as_hdf5_dialog.dismiss()
+        self.saved_previous = True
+        self.save_dialog.folder = folder
+        self.save_as_hdf5_dialog.folder = folder
+        self.msg = f'Successfully saved to "{os.path.join(folder, filename)}".'
 
     def quit(self, instance):
         if self.cl.mode == 'RELEASE':
