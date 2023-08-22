@@ -207,7 +207,31 @@
             BoxLayout:
                 id: graph_line
             BoxLayout:
-                id: graph_contour
+                orientation: 'vertical'
+                BoxLayout:
+                    id: graph_contour
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: 0.1
+                    Label:
+                        text: 'Map range'
+                    TextInput:
+                        id: input_map_range_1
+                        halign: 'center'
+                        valign: 'center'
+                        pos_hint: {'center_y': 0.5}
+                        multiline: False
+                        on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
+                        text: str(root.map_range_1)
+                    TextInput:
+                        id: input_map_range_2
+                        halign: 'center'
+                        valign: 'center'
+                        pos_hint: {'center_y': 0.5}
+                        multiline: False
+                        on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
+                        text: str(root.map_range_2)
+
 
         Label:
             text: root.msg

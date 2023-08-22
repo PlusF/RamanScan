@@ -24,6 +24,20 @@ from ConfigLoader import ConfigLoader
 from utils import remove_cosmic_ray
 
 
+def subtract_baseline(xdata: np.ndarray, ydata: np.ndarray, map_range_1: float, map_range_2: float):
+    map_range_idx = (map_range_1 <= xdata) & (xdata <= map_range_2)
+    ydata = ydata[:, :, map_range_idx]
+    if ydata.shape[2] == 0:
+        return None
+
+    def sub(arr):
+        baseline = np.linspace(arr[0], arr[-1], arr.shape[0])
+        return ydata - baseline
+
+    ydata = np.array([[sub(d).sum() for d in dat] for dat in ydata])
+    return ydata
+
+
 # データの保存先を指定するダイアログ
 class SaveDialogContent(FloatLayout):
     save = ObjectProperty(None)
@@ -58,6 +72,9 @@ class RASDriver(BoxLayout):
     accumulation = ObjectProperty(3)
     # 測定間隔(距離）
     pixel_size = ObjectProperty(1)
+    # マッピング範囲
+    map_range_1 = ObjectProperty(0)
+    map_range_2 = ObjectProperty(100)
     msg = StringProperty('Please initialize the detector.')
 
     def __init__(self, **kwargs):
@@ -235,7 +252,6 @@ class RASDriver(BoxLayout):
 
     def update_graph_line(self, ydata):
         # スペクトルを表示
-        # TODO: show the spectrum accumulated
         if self.cl.cosmic_ray_removal:
             ydata = remove_cosmic_ray(ydata)
 
@@ -248,19 +264,20 @@ class RASDriver(BoxLayout):
         self.graph_line.y_ticks_major = float(np.max(ydata) - np.min(ydata)) / 5
 
     def update_graph_contour(self):
+        if len(self.ydata.shape) != 4:
+            return
         # マップを表示
-        # TODO: show the spectrum accumulated
-        map_data = self.ydata
-        if self.cl.cosmic_ray_removal:
-            map_data = remove_cosmic_ray(map_data)
-
+        map_data = self.ydata.sum(axis=2)
+        # TODO: calculate x range
         self.xdata = np.arange(0, self.size_xdata, 1)
         self.graph_contour.xmax = self.ydata.shape[1]
         self.graph_contour.ymax = self.ydata.shape[0]
         self.contourplot.xrange = (0, self.ydata.shape[1])
         self.contourplot.yrange = (0, self.ydata.shape[0])
-
-        self.contourplot.data = self.ydata.sum(axis=3).sum(axis=2).T.reshape(self.ydata.shape[:2])
+        signal_to_baseline = subtract_baseline(self.xdata, map_data, self.map_range_1, self.map_range_2)
+        if signal_to_baseline is None:
+            return
+        self.contourplot.data = signal_to_baseline.T.reshape(self.ydata.shape[:2])
 
     def update_position(self):
         # 別スレッド内で動き続ける
@@ -352,6 +369,21 @@ class RASDriver(BoxLayout):
             dtype=float,
             validate=lambda x: x > 0.1
         )
+
+    def set_map_range(self, map_range_1: str, map_range_2: str):
+        self.set_param(
+            name='map_range_1',
+            val=map_range_1,
+            dtype=float,
+            validate=lambda x: 0 <= x
+        )
+        self.set_param(
+            name='map_range_2',
+            val=map_range_2,
+            dtype=float,
+            validate=lambda x: 0 <= x
+        )
+        self.update_graph_contour()
 
     def create_yesno_dialog(self, title, message, yes_func):
         self.dialog = Popup(
@@ -511,7 +543,6 @@ class RASDriver(BoxLayout):
         for i, (col_x, col_y) in enumerate(zip(self.coord_x, self.coord_y)):
             for j, (pos_x, pos_y) in enumerate(zip(col_x, col_y)):
                 coord = np.array([pos_x, pos_y])
-                print(coord)
                 time_left = np.ceil((num_pos - i) * (self.integration * self.accumulation) / 60)
                 self.msg = f'Acquisition {num_done + 1} of {num_pos}... {time_left} minutes left.'
 
@@ -523,7 +554,6 @@ class RASDriver(BoxLayout):
                     self.current_pos = coord
 
                 self.acquire(during_scan=True, i=i, j=j)
-                print(self.ydata.sum(axis=3).sum(axis=2))
                 self.update_graph_contour()
 
                 num_done += 1
