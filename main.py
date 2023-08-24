@@ -39,6 +39,15 @@ def subtract_baseline(xdata: np.ndarray, ydata: np.ndarray, map_range_1: float, 
     return ydata
 
 
+def generate_fake_data(size):
+    spec = np.expand_dims(np.sin(np.linspace(-np.pi, np.pi, size)), axis=0) * np.random.randint(1, 10)
+    noise = np.random.random(size) * 10
+    cosmic_ray = np.zeros(size)
+    cosmic_ray[np.random.randint(0, size)] = 100
+    spec += noise + cosmic_ray
+    return spec
+
+
 # データの保存先を指定するダイアログ
 class SaveDialogContent(FloatLayout):
     save = ObjectProperty(None)
@@ -498,17 +507,14 @@ class RASDriver(BoxLayout):
             elif self.cl.mode == 'DEBUG':
                 time.sleep(self.integration)
                 print(f'acquired {k + 1}')
-                spec = np.expand_dims(np.sin(np.linspace(-np.pi, np.pi, self.size_xdata)), axis=0) * np.random.randint(1, 10)
-                noise = np.random.random(self.size_xdata) * 10
-                cosmic_ray = np.zeros(self.size_xdata)
-                cosmic_ray[np.random.randint(0, self.size_xdata)] = 100
-                spec += noise + cosmic_ray
+                spec = generate_fake_data(self.size_xdata)
                 ydata = np.append(ydata, np.array(spec), axis=0)
             self.update_graph_line(ydata.sum(axis=0))  # show accumulated spectrum
 
             self.progress_value_acquire = k + 1
 
         self.ydata[i, j] = ydata
+        print(self.ydata)
 
         if not during_scan:  # finalize acquisition
             self.coord_x = np.array([self.current_pos[0]])
@@ -622,6 +628,7 @@ class RASDriver(BoxLayout):
         writer.create_dataset('pos_x', self.coord_x)
         writer.create_dataset('pos_y', self.coord_y)
         writer.create_dataset('xdata', self.xdata)
+        print(self.ydata.shape)
         writer.create_dataset('spectra', self.ydata)
         writer.close()
 
