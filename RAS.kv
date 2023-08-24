@@ -1,5 +1,11 @@
 #:kivy 1.0.9
 
+<VBox@BoxLayout>:
+    orientation: "vertical"
+
+<HBox@BoxLayout>:
+    orientation: "horizontal"
+
 <YesNoDialogContent>:
     RelativeLayout:
         pos_hint: {'x': 0.5, 'y':0.5}
@@ -19,10 +25,9 @@
             on_release: root.cancel()
 
 <SaveDialogContent>:
-    BoxLayout:
+    VBox
         size: root.size
         pos: root.pos
-        orientation: "vertical"
         FileChooserListView:
             id: filechooser
             path: root.folder
@@ -60,12 +65,17 @@
     center_x: self.parent.center_x
     center_y: self.parent.center_y
 
+<BasicTextInput@TextInput>:
+    halign: 'center'
+    valign: 'center'
+    pos_hint: {'center_y': 0.5}
+    multiline: False
+
 <RASDriver>:
     orientation: 'horizontal'
 
-    BoxLayout:
+    VBox
         size_hint_x: 0.5
-        orientation: 'vertical'
         # ステージ関連
         # タブ1
         TabbedPanel:
@@ -73,10 +83,8 @@
             size_hint_y: 0.6
             TabbedPanelItem:
                 text: 'settings'
-                BoxLayout:
-                    orientation: 'horizontal'
-                    BoxLayout:
-                        orientation: 'vertical'
+                HBox:
+                    VBox:
                         Label:
                             text: 'Start'
                         Label:
@@ -87,8 +95,7 @@
                             id: button_set_start
                             text: 'Set Start'
                             on_release: root.start_pos = root.current_pos
-                    BoxLayout:
-                        orientation: 'vertical'
+                    VBox:
                         Label:
                             text: 'Current'
                         Label:
@@ -97,8 +104,7 @@
                             text: str(round(root.current_pos[1], 2))
                         Label:
                             text:
-                    BoxLayout:
-                        orientation: 'vertical'
+                    VBox:
                         Label:
                             text: 'Goal'
                         Label:
@@ -109,30 +115,21 @@
                             id: button_set_goal
                             text: 'Set Goal'
                             on_release: root.goal_pos = root.current_pos
-                    BoxLayout:
-                        orientation: 'vertical'
+                    VBox:
                         Label:
                             text: 'Go to'
-                        TextInput:
+                        BasicTextInput:
                             id: input_pos_x
-                            halign: 'center'
-                            valign: 'center'
-                            multiline: False
-                        TextInput:
+                        BasicTextInput:
                             id: input_pos_y
-                            halign: 'center'
-                            valign: 'center'
-                            multiline: False
                         Button:
                             id: button_go
                             text: 'Go to'
                             on_release: root.go(input_pos_x.text, input_pos_y.text)
             TabbedPanelItem:
                 text: 'jog'
-                BoxLayout:
-                    orientation: 'horizontal'
-                    BoxLayout:
-                        orientation: 'vertical'
+                HBox:
+                    VBox:
                         Label:
                             text: 'Current'
                         Label:
@@ -178,63 +175,44 @@
                         Button:
                             disabled: True
         # 検出器関連
-        BoxLayout:
+        HBox:
             size_hint_y: 0.3
             padding: [0, 30, 0, 0]
-            orientation: 'horizontal'
             Button:
                 id: button_initialize
                 text: 'Initialize'
                 on_release: root.initialize()
-            BoxLayout:
-                orientation: 'vertical'
-                Label:
-                    text: str(root.current_temperature) + ' °C'
-        BoxLayout:
+            Label:
+                text: str(root.current_temperature) + ' °C'
+        HBox:
             size_hint_y: 0.12
-            orientation: 'horizontal'
             Label:
                 text: 'Integration [s]'
-            TextInput:
+            BasicTextInput:
                 id: input_integration
                 text: str(root.integration)
-                halign: 'center'
-                valign: 'center'
                 hint_text:'30'
-                pos_hint: {'center_y': 0.5}
-                multiline: False
                 on_text: root.set_integration(input_integration.text)
-        BoxLayout:
+        HBox
             size_hint_y: 0.12
-            orientation: 'horizontal'
             Label:
                 text: 'Accumulation'
-            TextInput:
+            BasicTextInput:
                 id: input_accumulation
                 text: str(root.accumulation)
-                halign: 'center'
-                valign: 'center'
                 hint_text:'1'
-                pos_hint: {'center_y': 0.5}
-                multiline: False
                 on_text: root.set_accumulation(input_accumulation.text)
-        BoxLayout:
+        HBox:
             size_hint_y: 0.12
-            orientation: 'horizontal'
             Label:
                 text: 'Pixel size [um]'
-            TextInput:
+            BasicTextInput:
                 id: input_pixel_size
                 text: str(root.pixel_size)
-                halign: 'center'
-                valign: 'center'
                 hint_text:'1'
-                pos_hint: {'center_y': 0.5}
-                multiline: False
                 on_text: root.set_pixel_size(input_pixel_size.text)
-        BoxLayout:
+        HBox:
             size_hint_y: 0.2
-            orientation: 'horizontal'
             Button:
                 id: button_acquire
                 text: 'Acquire'
@@ -245,9 +223,8 @@
                     id: progress_acquire
                     value: root.progress_value_acquire
                     pos: self.parent.pos[0] - 100, self.parent.pos[1] + 5
-        BoxLayout:
+        HBox:
             size_hint_y: 0.2
-            orientation: 'horizontal'
             Button:
                 id: button_scan
                 text: 'Start Scan'
@@ -269,38 +246,26 @@
             size_hint_y: 0.2
             on_release: root.save_as_hdf5_dialog.open()
     # グラフ関連
-    BoxLayout:
-        orientation: 'vertical'
-        BoxLayout:
-            orientation: 'horizontal'
+    VBox:
+        HBox:
             BoxLayout:
                 id: graph_line
-            BoxLayout:
-                orientation: 'vertical'
+            VBox:
                 BoxLayout:
                     id: graph_contour
                 # マッピングのレンジ設定
-                BoxLayout:
-                    orientation: 'horizontal'
+                HBox:
                     size_hint_y: 0.06
                     Label:
                         text: 'Map range'
-                    TextInput:
+                    BasicTextInput:
                         id: input_map_range_1
-                        halign: 'center'
-                        valign: 'center'
-                        pos_hint: {'center_y': 0.5}
-                        multiline: False
-                        on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
                         text: str(root.map_range_1)
-                    TextInput:
-                        id: input_map_range_2
-                        halign: 'center'
-                        valign: 'center'
-                        pos_hint: {'center_y': 0.5}
-                        multiline: False
                         on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
+                    BasicTextInput:
+                        id: input_map_range_2
                         text: str(root.map_range_2)
+                        on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
 
 
         Label:
