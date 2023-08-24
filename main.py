@@ -608,7 +608,7 @@ class RASDriver(BoxLayout):
         num_done = 0
         for i, (col_x, col_y) in enumerate(zip(self.coord_x, self.coord_y)):
             for j, coord in enumerate(zip(col_x, col_y)):
-                time_left = np.ceil((num_pos - i) * (self.integration * self.accumulation) / 60)
+                time_left = np.ceil((num_pos - num_done) * (self.integration * self.accumulation) / 60)
                 self.msg = f'Acquisition {num_done + 1} of {num_pos}... {time_left} minutes left.'
 
                 if self.cl.mode == 'RELEASE':
