@@ -140,8 +140,8 @@
                     VBox:
                         VBox:
                             Label:
-                                id: vel_text
-                                text: "Jog speed"
+                                id: speed_text
+                                text: f'Jog speed: {root.jog_speed}'
                                 size_hint_y: 0.1
                             Slider:
                                 id: vel_slider
@@ -150,7 +150,9 @@
                                 min: 1
                                 max: 9
                                 step: 1
-                                value: root.jog_speed
+                                on_value:
+                                    root.jog_speed = self.value
+                                    speed_text.text = f'Jog speed: {root.jog_speed}'
                     GridLayout:
                         rows: 3
                         cols: 3
@@ -158,16 +160,16 @@
                             disabled: True
                         MoveButton:
                             id: move_top
-                            on_press: root.com.jog(2, '+', root.jog_speed)
-                            on_release: root.com.stop(2)
+                            on_press: root.start_jogging(2, '+')
+                            on_release: root.stop_jogging(2, '+')
                             MoveImage:
                                 source: "assets/top50.png"
                         Button:
                             disabled: True
                         MoveButton:
                             id: move_left
-                            on_press: root.com.jog(1, '-', root.jog_speed)
-                            on_release: root.com.stop(1)
+                            on_press: root.start_jogging(1, '-')
+                            on_release: root.stop_jogging(1, '-')
                             MoveImage:
                                 source: "assets/left50.png"
                         Button:
@@ -175,16 +177,16 @@
                             background_color: (0, 0, 0, 1)
                         MoveButton:
                             id: move_right
-                            on_press: root.com.jog(1, '+', root.jog_speed)
-                            on_release: root.com.stop(1)
+                            on_press: root.start_jogging(1, '+')
+                            on_release: root.stop_jogging(1, '+')
                             MoveImage:
                                 source: "assets/right50.png"
                         Button:
                             disabled: True
                         MoveButton:
                             id: move_bottom
-                            on_press: root.com.jog(2, '-', root.jog_speed)
-                            on_release: root.com.stop(2)
+                            on_press: root.start_jogging(2, '-')
+                            on_release: root.stop_jogging(2, '-')
                             MoveImage:
                                 source: "assets/bottom50.png"
                         Button:

@@ -3,6 +3,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.properties import NumericProperty, StringProperty, ObjectProperty
 from kivy.uix.popup import Popup
+from kivy.clock import Clock
 from kivy_garden.graph import Graph, LinePlot, ContourPlot
 from kivy.config import Config
 Config.set('graphics', 'width', '1200')
@@ -166,6 +167,7 @@ class RASDriver(BoxLayout):
         )
 
         self.open_ports()
+        Clock.schedule_interval(self.ask_position, self.cl.dt)
         self.create_and_start_thread_position()
 
         # キーボード入力も受け付けるために必要
@@ -343,21 +345,25 @@ class RASDriver(BoxLayout):
             return
         self.contourplot.data = signal_to_baseline.T.reshape(self.ydata.shape[:2])
 
+    def ask_position(self, dt):
+        self.com.get_position()
+
     def update_position(self):
         # 別スレッド内で動き続ける
-        # たまに座標の更新に数秒~10数秒のラグがあるのはなぜ？
+        # シリアル通信の受信をすべて請け負う
+        # 基本的に座標の情報以外は不要なためスルー
         while True:
-            self.com.get_position()
-            msg = self.com.recv()
-
+            if self.cl.mode == 'RELEASE':
+                msg = self.com.recv()
+            elif self.cl.mode == 'DEBUG':
+                msg = '0,0'
+                time.sleep(1)
             try:
                 pos_list = list(map(lambda x: int(x) * self.com.um_per_pulse, msg.split(',')))
                 self.current_pos = np.array(pos_list)
             except ValueError:
                 print(msg)
                 continue
-            finally:
-                time.sleep(self.cl.dt)
 
     def go(self, x, y):
         try:
@@ -679,6 +685,18 @@ class RASDriver(BoxLayout):
         self.save_as_hdf5_dialog.folder = folder
         self.msg = f'Successfully saved to "{os.path.join(folder, filename)}".'
 
+    def start_jogging(self, axis, direction):
+        if not self.is_moving[axis][direction]:
+            self.is_moving[axis][direction] = True
+            self.com.jog(axis, direction, self.jog_speed)
+            self.move_widgets[axis][direction].state = 'down'
+
+    def stop_jogging(self, axis, direction):
+        if self.is_moving[axis][direction]:
+            self.is_moving[axis][direction] = False
+            self.com.stop(axis)
+            self.move_widgets[axis][direction].state = 'normal'
+
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down=self._on_keyboard_down)
         self._keyboard = None
@@ -688,19 +706,14 @@ class RASDriver(BoxLayout):
         axis, direction = classify_key(key)
         if axis is None:
             return
-        if not self.is_moving[axis][direction]:
-            self.is_moving[axis][direction] = True
-            self.com.jog(axis, direction, self.jog_speed)
-            self.move_widgets[axis][direction].state = 'down'
+        self.start_jogging(axis, direction)
 
     def _on_keyboard_up(self, keyboard, keycode):
         key = keycode[1]
         axis, direction = classify_key(key)
         if axis is None:
             return
-        self.is_moving[axis][direction] = False
-        self.com.stop(axis)
-        self.move_widgets[axis][direction].state = 'normal'
+        self.stop_jogging(axis, direction)
 
     def quit(self, instance):
         if self.cl.mode == 'RELEASE':
