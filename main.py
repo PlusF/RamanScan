@@ -49,6 +49,24 @@ def generate_fake_data(size):
     return spec
 
 
+def classify_key(key):
+    if key in ['a', 'left']:
+        axis = 1
+        direction = '-'
+    elif key in ['w', 'up']:
+        axis = 2
+        direction = '+'
+    elif key in ['d', 'right']:
+        axis = 1
+        direction = '+'
+    elif key in ['s', 'down']:
+        axis = 2
+        direction = '-'
+    else:
+        return None, None
+    return axis, direction
+
+
 # データの保存先を指定するダイアログ
 class SaveDialogContent(FloatLayout):
     save = ObjectProperty(None)
@@ -149,6 +167,31 @@ class RASDriver(BoxLayout):
 
         self.open_ports()
         self.create_and_start_thread_position()
+
+        # キーボード入力も受け付けるために必要
+        self.is_moving = {
+            1: {
+                '+': False,
+                '-': False,
+            },
+            2: {
+                '+': False,
+                '-': False,
+            }
+        }
+        self.move_widgets = {
+            1: {
+                '+': self.ids.move_right,
+                '-': self.ids.move_left,
+            },
+            2: {
+                '+': self.ids.move_top,
+                '-': self.ids.move_bottom,
+            }
+        }
+        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
+        self._keyboard.bind(on_key_down=self._on_keyboard_down)
+        self._keyboard.bind(on_key_up=self._on_keyboard_up)
 
     def create_graph(self):
         # for spectrum
@@ -635,6 +678,29 @@ class RASDriver(BoxLayout):
         self.save_dialog.folder = folder
         self.save_as_hdf5_dialog.folder = folder
         self.msg = f'Successfully saved to "{os.path.join(folder, filename)}".'
+
+    def _keyboard_closed(self):
+        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+        self._keyboard = None
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        key = keycode[1]
+        axis, direction = classify_key(key)
+        if axis is None:
+            return
+        if not self.is_moving[axis][direction]:
+            self.is_moving[axis][direction] = True
+            self.com.jog(axis, direction, self.jog_speed)
+            self.move_widgets[axis][direction].state = 'down'
+
+    def _on_keyboard_up(self, keyboard, keycode):
+        key = keycode[1]
+        axis, direction = classify_key(key)
+        if axis is None:
+            return
+        self.is_moving[axis][direction] = False
+        self.com.stop(axis)
+        self.move_widgets[axis][direction].state = 'normal'
 
     def quit(self, instance):
         if self.cl.mode == 'RELEASE':
