@@ -181,7 +181,7 @@ class RASDriver(BoxLayout):
         # 各装置との接続を開く
         if self.cl.mode == 'RELEASE':
             self.sdk = atmcd()
-            self.ser = serial.Serial(self.cl.port, self.cl.baudrate, write_timeout=0)
+            self.ser = serial.Serial(self.cl.port, self.cl.baudrate, timeout=0.5, write_timeout=0)
             self.com = SC101GCommander(self.ser)
         elif self.cl.mode == 'DEBUG':
             self.sdk = None
@@ -288,7 +288,7 @@ class RASDriver(BoxLayout):
             return
         # マップを表示
         map_data = self.ydata.sum(axis=2)
-        # TODO: calculate x range
+        # TODO: calculate x wavelength range [nm]
         self.xdata = np.arange(0, self.size_xdata, 1)
         self.graph_contour.xmax = self.ydata.shape[1]
         self.graph_contour.ymax = self.ydata.shape[0]
@@ -317,7 +317,7 @@ class RASDriver(BoxLayout):
 
     def go(self, x, y):
         try:
-            pos = list(map(int, [x, y]))
+            pos = list(map(float, [x, y]))
         except ValueError:
             self.msg = 'invalid value.'
             return
@@ -501,7 +501,7 @@ class RASDriver(BoxLayout):
                 self.sdk.handle_return(self.sdk.StartAcquisition())
                 self.sdk.handle_return(self.sdk.WaitForAcquisition())
                 ret, spec, first, last = self.sdk.GetImages16(1, 1, self.size_xdata)
-                ydata = np.append(ydata, np.array(spec), axis=0)
+                ydata = np.append(ydata, np.array([spec]), axis=0)
                 self.sdk.handle_return(ret)
             elif self.cl.mode == 'DEBUG':
                 time.sleep(self.integration)
