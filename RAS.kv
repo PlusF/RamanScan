@@ -77,12 +77,13 @@
     VBox
         size_hint_x: 0.5
         # ステージ関連
-        # タブ1
         TabbedPanel:
             do_default_tab: False
             size_hint_y: 0.6
+            # タブ1: start goal 設定
             TabbedPanelItem:
                 text: 'settings'
+                width: self.parent.width / 2
                 HBox:
                     VBox:
                         Label:
@@ -126,8 +127,10 @@
                             id: button_go
                             text: 'Go to'
                             on_release: root.go(input_pos_x.text, input_pos_y.text)
+            # タブ2: jog
             TabbedPanelItem:
                 text: 'jog'
+                width: self.parent.width / 2
                 HBox:
                     VBox:
                         Label:
@@ -136,6 +139,20 @@
                             text: str(round(root.current_pos[0], 2))
                         Label:
                             text: str(round(root.current_pos[1], 2))
+                    VBox:
+                        VBox:
+                            Label:
+                                id: vel_text
+                                text: "Jog speed"
+                                size_hint_y: 0.1
+                            Slider:
+                                id: vel_slider
+                                size_hint_y: 0.9
+                                orientation: 'vertical'
+                                min: 1
+                                max: 9
+                                step: 1
+                                value: root.jog_speed
                     GridLayout:
                         rows: 3
                         cols: 3
@@ -146,7 +163,7 @@
                             on_press: root.com.jog(2, '+', root.jog_speed)
                             on_release: root.com.stop(2)
                             MoveImage:
-                                source: "assets/top.png"
+                                source: "assets/top50.png"
                         Button:
                             disabled: True
                         MoveButton:
@@ -154,7 +171,7 @@
                             on_press: root.com.jog(1, '-', root.jog_speed)
                             on_release: root.com.stop(1)
                             MoveImage:
-                                source: "assets/left.png"
+                                source: "assets/left50.png"
                         Button:
                             disabled: True
                             background_color: (0, 0, 0, 1)
@@ -163,7 +180,7 @@
                             on_press: root.com.jog(1, '+', root.jog_speed)
                             on_release: root.com.stop(1)
                             MoveImage:
-                                source: "assets/right.png"
+                                source: "assets/right50.png"
                         Button:
                             disabled: True
                         MoveButton:
@@ -171,7 +188,7 @@
                             on_press: root.com.jog(2, '-', root.jog_speed)
                             on_release: root.com.stop(2)
                             MoveImage:
-                                source: "assets/bottom.png"
+                                source: "assets/bottom50.png"
                         Button:
                             disabled: True
         # 検出器関連
@@ -266,7 +283,6 @@
                         id: input_map_range_2
                         text: str(root.map_range_2)
                         on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
-
 
         Label:
             text: root.msg

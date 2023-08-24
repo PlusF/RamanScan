@@ -187,7 +187,7 @@ class RASDriver(BoxLayout):
         elif self.cl.mode == 'DEBUG':
             self.sdk = None
             self.ser = None
-            self.com = None
+            self.com = SC101GCommander()
         else:
             raise ValueError('Error with config.json. mode must be DEBUG or RELEASE.')
 
