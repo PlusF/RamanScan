@@ -53,67 +53,131 @@
             text: "OK"
             on_release: root.ok()
 
+<MoveButton@Button>:
+    background_color: (166/255,166/255,166/255,1)
+
+<MoveImage@Image>:
+    center_x: self.parent.center_x
+    center_y: self.parent.center_y
+
 <RASDriver>:
     orientation: 'horizontal'
 
     BoxLayout:
         size_hint_x: 0.5
         orientation: 'vertical'
-        BoxLayout:
+        # ステージ関連
+        # タブ1
+        TabbedPanel:
+            do_default_tab: False
             size_hint_y: 0.6
-            orientation: 'horizontal'
-            BoxLayout:
-                orientation: 'vertical'
-                Label:
-                    text: 'Start'
-                Label:
-                    text: str(round(root.start_pos[0], 2))
-                Label:
-                    text: str(round(root.start_pos[1], 2))
-                Button:
-                    id: button_set_start
-                    text: 'Set Start'
-                    on_release: root.start_pos = root.current_pos
-            BoxLayout:
-                orientation: 'vertical'
-                Label:
-                    text: 'Current'
-                Label:
-                    text: str(round(root.current_pos[0], 2))
-                Label:
-                    text: str(round(root.current_pos[1], 2))
-                Label:
-                    text:
-            BoxLayout:
-                orientation: 'vertical'
-                Label:
-                    text: 'Goal'
-                Label:
-                    text: str(round(root.goal_pos[0], 2))
-                Label:
-                    text: str(round(root.goal_pos[1], 2))
-                Button:
-                    id: button_set_goal
-                    text: 'Set Goal'
-                    on_release: root.goal_pos = root.current_pos
-            BoxLayout:
-                orientation: 'vertical'
-                Label:
-                    text: 'Go to'
-                TextInput:
-                    id: input_pos_x
-                    halign: 'center'
-                    valign: 'center'
-                    multiline: False
-                TextInput:
-                    id: input_pos_y
-                    halign: 'center'
-                    valign: 'center'
-                    multiline: False
-                Button:
-                    id: button_go
-                    text: 'Go to'
-                    on_release: root.go(input_pos_x.text, input_pos_y.text)
+            TabbedPanelItem:
+                text: 'settings'
+                BoxLayout:
+                    orientation: 'horizontal'
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Label:
+                            text: 'Start'
+                        Label:
+                            text: str(round(root.start_pos[0], 2))
+                        Label:
+                            text: str(round(root.start_pos[1], 2))
+                        Button:
+                            id: button_set_start
+                            text: 'Set Start'
+                            on_release: root.start_pos = root.current_pos
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Label:
+                            text: 'Current'
+                        Label:
+                            text: str(round(root.current_pos[0], 2))
+                        Label:
+                            text: str(round(root.current_pos[1], 2))
+                        Label:
+                            text:
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Label:
+                            text: 'Goal'
+                        Label:
+                            text: str(round(root.goal_pos[0], 2))
+                        Label:
+                            text: str(round(root.goal_pos[1], 2))
+                        Button:
+                            id: button_set_goal
+                            text: 'Set Goal'
+                            on_release: root.goal_pos = root.current_pos
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Label:
+                            text: 'Go to'
+                        TextInput:
+                            id: input_pos_x
+                            halign: 'center'
+                            valign: 'center'
+                            multiline: False
+                        TextInput:
+                            id: input_pos_y
+                            halign: 'center'
+                            valign: 'center'
+                            multiline: False
+                        Button:
+                            id: button_go
+                            text: 'Go to'
+                            on_release: root.go(input_pos_x.text, input_pos_y.text)
+            TabbedPanelItem:
+                text: 'jog'
+                BoxLayout:
+                    orientation: 'horizontal'
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Label:
+                            text: 'Current'
+                        Label:
+                            text: str(round(root.current_pos[0], 2))
+                        Label:
+                            text: str(round(root.current_pos[1], 2))
+                    GridLayout:
+                        rows: 3
+                        cols: 3
+                        Button:
+                            disabled: True
+                        MoveButton:
+                            id: move_top
+                            on_press: root.com.jog(2, '+', root.jog_speed)
+                            on_release: root.com.stop(2)
+                            MoveImage:
+                                source: "assets/top.png"
+                        Button:
+                            disabled: True
+                        MoveButton:
+                            id: move_left
+                            on_press: root.com.jog(1, '-', root.jog_speed)
+                            on_release: root.com.stop(1)
+                            MoveImage:
+                                source: "assets/left.png"
+                        Button:
+                            disabled: True
+                            background_color: (0, 0, 0, 1)
+                        MoveButton:
+                            id: move_right
+                            on_press: root.com.jog(1, '+', root.jog_speed)
+                            on_release: root.com.stop(1)
+                            MoveImage:
+                                source: "assets/right.png"
+                        Button:
+                            disabled: True
+                        MoveButton:
+                            id: move_bottom
+                            on_press: root.com.jog(2, '-', root.jog_speed)
+                            on_release: root.com.stop(2)
+                            MoveImage:
+                                source: "assets/bottom.png"
+                        Button:
+                            disabled: True
+        # 検出器関連
         BoxLayout:
             size_hint_y: 0.3
             padding: [0, 30, 0, 0]
@@ -204,7 +268,7 @@
             text: 'Save as HDF5'
             size_hint_y: 0.2
             on_release: root.save_as_hdf5_dialog.open()
-
+    # グラフ関連
     BoxLayout:
         orientation: 'vertical'
         BoxLayout:
@@ -215,9 +279,10 @@
                 orientation: 'vertical'
                 BoxLayout:
                     id: graph_contour
+                # マッピングのレンジ設定
                 BoxLayout:
                     orientation: 'horizontal'
-                    size_hint_y: 0.1
+                    size_hint_y: 0.06
                     Label:
                         text: 'Map range'
                     TextInput:

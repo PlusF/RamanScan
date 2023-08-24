@@ -75,6 +75,7 @@ class RASDriver(BoxLayout):
     start_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
     current_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
     goal_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
+    jog_speed = NumericProperty(1)
     progress_value_acquire = NumericProperty(0)
     progress_value_scan = NumericProperty(0)
     # 露光時間
