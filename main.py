@@ -604,7 +604,7 @@ class RASDriver(BoxLayout):
 
     def save_as_hdf5(self, folder, filename):
         filename = os.path.basename(filename)
-        if '.fdf5' not in filename:
+        if '.hdf5' not in filename:
             filename += '.hdf5'
 
         writer = RamanHDFWriter(os.path.join(folder, filename))
