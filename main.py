@@ -514,7 +514,6 @@ class RASDriver(BoxLayout):
             self.progress_value_acquire = k + 1
 
         self.ydata[i, j] = ydata
-        print(self.ydata)
 
         if not during_scan:  # finalize acquisition
             self.coord_x = np.array([self.current_pos[0]])
@@ -628,7 +627,6 @@ class RASDriver(BoxLayout):
         writer.create_dataset('pos_x', self.coord_x)
         writer.create_dataset('pos_y', self.coord_y)
         writer.create_dataset('xdata', self.xdata)
-        print(self.ydata.shape)
         writer.create_dataset('spectra', self.ydata)
         writer.close()
 
