@@ -265,8 +265,22 @@
     # グラフ関連
     VBox:
         HBox:
-            BoxLayout:
-                id: graph_line
+            VBox:
+                BoxLayout:
+                    id: graph_line
+                # yレンジ設定
+                HBox:
+                    size_hint_y: 0.06
+                    Label:
+                        text: 'y axis range'
+                    BasicTextInput:
+                        id: input_line_y_range_1
+                        text: str(root.line_y_range_1)
+                        on_text: root.set_line_y_range(input_line_y_range_1.text, input_line_y_range_2.text)
+                    BasicTextInput:
+                        id: input_line_y_range_2
+                        text: str(root.line_y_range_2)
+                        on_text: root.set_line_y_range(input_line_y_range_1.text, input_line_y_range_2.text)
             VBox:
                 BoxLayout:
                     id: graph_contour

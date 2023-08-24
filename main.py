@@ -104,6 +104,9 @@ class RASDriver(BoxLayout):
     # 測定間隔(距離）
     pixel_size = ObjectProperty(1)
     # マッピング範囲
+    line_y_range_1 = ObjectProperty(-10)
+    line_y_range_2 = ObjectProperty(10)
+    # マッピング範囲
     map_range_1 = ObjectProperty(0)
     map_range_2 = ObjectProperty(100)
     msg = StringProperty('Please initialize the detector.')
@@ -211,7 +214,7 @@ class RASDriver(BoxLayout):
 
         # for mapping
         self.graph_contour = Graph(
-            xlabel='x pixel', ylabel='y pixel',
+            xlabel='x [um]', ylabel='y [um]',
             xmin=0, xmax=10, ymin=0, ymax=10,
             x_ticks_major=10, x_ticks_minor=1, y_ticks_major=5,
             x_grid_label=True, y_grid_label=True,
@@ -342,8 +345,8 @@ class RASDriver(BoxLayout):
         self.lineplot.points = [(x, y) for x, y in zip(self.xdata, ydata)]
         self.graph_line.xmin = float(np.min(self.xdata))
         self.graph_line.xmax = float(np.max(self.xdata))
-        self.graph_line.ymin = float(np.min(ydata))
-        self.graph_line.ymax = float(max(np.max(ydata), np.min(ydata) + 0.1))
+        self.graph_line.ymin = float(self.line_y_range_1)
+        self.graph_line.ymax = float(self.line_y_range_2)
         self.graph_line.y_ticks_major = float(np.max(ydata) - np.min(ydata)) / 5
 
     def update_graph_contour(self):
@@ -353,10 +356,14 @@ class RASDriver(BoxLayout):
         map_data = self.ydata.sum(axis=2)
         # TODO: calculate x wavelength range [nm]
         self.xdata = np.arange(0, self.size_xdata, 1)
-        self.graph_contour.xmax = self.ydata.shape[1]
-        self.graph_contour.ymax = self.ydata.shape[0]
-        self.contourplot.xrange = (0, self.ydata.shape[1])
-        self.contourplot.yrange = (0, self.ydata.shape[0])
+        self.graph_contour.xmin = int(self.start_pos[0])
+        self.graph_contour.ymin = int(self.start_pos[1])
+        self.graph_contour.xmax = int(self.goal_pos[0])
+        self.graph_contour.ymax = int(self.goal_pos[1])
+        self.graph_contour.x_ticks_major = int(self.pixel_size)
+        self.graph_contour.y_ticks_major = int(self.pixel_size)
+        self.contourplot.xrange = (self.start_pos[0], self.goal_pos[0])
+        self.contourplot.yrange = (self.start_pos[1], self.goal_pos[1])
         signal_to_baseline = subtract_baseline(self.xdata, map_data, self.map_range_1, self.map_range_2)
         if signal_to_baseline is None:
             return
@@ -455,20 +462,37 @@ class RASDriver(BoxLayout):
             validate=lambda x: x > 0.1
         )
 
+    def set_line_y_range(self, line_y_range_1: str, line_y_range_2: str):
+        self.set_param(
+            name='line_y_range_1',
+            val=line_y_range_1,
+            dtype=float,
+            validate=lambda x: True
+        )
+        self.set_param(
+            name='line_y_range_2',
+            val=line_y_range_2,
+            dtype=float,
+            validate=lambda x: True
+        )
+        if self.line_y_range_1 < self.line_y_range_2:
+            self.update_graph_line(self.ydata.sum(axis=2)[0, 0, :] / self.accumulation)
+
     def set_map_range(self, map_range_1: str, map_range_2: str):
         self.set_param(
             name='map_range_1',
             val=map_range_1,
             dtype=float,
-            validate=lambda x: 0 <= x
+            validate=lambda x: True
         )
         self.set_param(
             name='map_range_2',
             val=map_range_2,
             dtype=float,
-            validate=lambda x: 0 <= x
+            validate=lambda x: True
         )
-        self.update_graph_contour()
+        if self.map_range_1 < self.map_range_2:
+            self.update_graph_contour()
 
     def create_yesno_dialog(self, title, message, yes_func):
         self.dialog = Popup(
