@@ -8,6 +8,7 @@ from kivy.config import Config
 Config.set('graphics', 'width', '1200')
 Config.set('graphics', 'height', '600')
 from kivy.core.window import Window
+from sigmakokicommander import SC101GCommander
 from CircularProgressBar import CircularProgressBar
 
 import os
@@ -181,11 +182,11 @@ class RASDriver(BoxLayout):
         if self.cl.mode == 'RELEASE':
             self.sdk = atmcd()
             self.ser = serial.Serial(self.cl.port, self.cl.baudrate, write_timeout=0)
-            # self.hsc = HSC103Controller(self.ser)
+            self.com = SC101GCommander(self.ser)
         elif self.cl.mode == 'DEBUG':
             self.sdk = None
             self.ser = None
-            # self.hsc = HSC103Controller(self.ser)
+            self.com = None
         else:
             raise ValueError('Error with config.json. mode must be DEBUG or RELEASE.')
 
@@ -302,31 +303,29 @@ class RASDriver(BoxLayout):
         # 別スレッド内で動き続ける
         # たまに座標の更新に数秒~10数秒のラグがあるのはなぜ？
         while True:
-            # TODO:
-            # self.hsc.get_position()
-            # msg = self.hsc.recv()
-            #
-            # try:
-            #     pos_list = list(map(lambda x: int(x) * self.hsc.um_per_pulse, msg.split(',')))
-            # except ValueError:
-            #     print(msg)
-            #     time.sleep(self.cl.dt)
-            #     continue
-            #
-            # self.current_pos = np.array(pos_list)
-            time.sleep(self.cl.dt)
+            self.com.get_position()
+            msg = self.com.recv()
+
+            try:
+                pos_list = list(map(lambda x: int(x) * self.com.um_per_pulse, msg.split(',')))
+                self.current_pos = np.array(pos_list)
+            except ValueError:
+                print(msg)
+                continue
+            finally:
+                time.sleep(self.cl.dt)
 
     def go(self, x, y):
         try:
-            pos = np.array([x, y], float)
+            pos = list(map(int, [x, y]))
         except ValueError:
             self.msg = 'invalid value.'
             return
 
         if self.cl.mode == 'RELEASE':
-            self.hsc.move_linear(pos - self.current_pos)
+            self.com.move_absolute(pos)
         elif self.cl.mode == 'DEBUG':
-            self.current_pos = pos
+            self.current_pos = np.array(pos)
 
     def set_param(self, name, val, dtype, validate):
         # 各種パラメータの設定関数の一般化
@@ -532,10 +531,11 @@ class RASDriver(BoxLayout):
         self.disable_buttons()
         # for instruments
         self.prepare_acquisition()
-        # self.hsc.set_speed_max()
-        # self.hsc.move_abs(self.start_pos)
-        # distance = np.max(self.current_pos - self.start_pos)
-        # time.sleep(distance / self.hsc.max_speed + 1)
+        self.com.set_speed_max()
+        self.com.set_acceleration_max()
+        self.com.move_absolute(self.start_pos)
+        distance = np.max(self.current_pos - self.start_pos)
+        time.sleep(distance / self.com.max_speed + 1)
 
         # 座標計算
         arr_x = np.arange(self.start_pos[0], self.goal_pos[0], self.pixel_size)
@@ -557,15 +557,14 @@ class RASDriver(BoxLayout):
         num_pos = self.coord_x.shape[0] * self.coord_x.shape[1]
         num_done = 0
         for i, (col_x, col_y) in enumerate(zip(self.coord_x, self.coord_y)):
-            for j, (pos_x, pos_y) in enumerate(zip(col_x, col_y)):
-                coord = np.array([pos_x, pos_y])
+            for j, coord in enumerate(zip(col_x, col_y)):
                 time_left = np.ceil((num_pos - i) * (self.integration * self.accumulation) / 60)
                 self.msg = f'Acquisition {num_done + 1} of {num_pos}... {time_left} minutes left.'
 
                 if self.cl.mode == 'RELEASE':
-                    # self.hsc.move_abs(coord)
-                    distance = np.linalg.norm(coord - self.current_pos)
-                    # time.sleep(distance / self.hsc.max_speed + 1)
+                    self.com.move_absolute(coord)
+                    distance = np.linalg.norm(np.array(coord) - self.current_pos)
+                    time.sleep(distance / self.com.max_speed + 1)
                 elif self.cl.mode == 'DEBUG':
                     self.current_pos = coord
 
