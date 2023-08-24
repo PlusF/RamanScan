@@ -198,7 +198,7 @@
             Button:
                 id: button_initialize
                 text: 'Initialize'
-                on_release: root.initialize()
+                on_release: root.create_and_start_thread_initialization()
             Label:
                 text: str(root.current_temperature) + ' °C'
         HBox:

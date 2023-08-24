@@ -243,11 +243,11 @@ class RASDriver(BoxLayout):
         self.thread_pos.daemon = True
         self.thread_pos.start()
 
-    def create_and_start_thread_cooling(self):
-        # 画面が停止しないよう、温度の監視は別スレッドを立てて行う
-        self.thread_cool = threading.Thread(target=self.update_temperature)
-        self.thread_cool.daemon = True
-        self.thread_cool.start()
+    def create_and_start_thread_initialization(self):
+        # 画面が停止しないよう、初期化と冷却は別スレッドを立てて行う
+        self.thread_initialization = threading.Thread(target=self.initialize)
+        self.thread_initialization.daemon = True
+        self.thread_initialization.start()
 
     def create_and_start_thread_acquisition(self):
         # 画面が停止しないよう、acquireは別スレッドを立てて行う
@@ -309,7 +309,6 @@ class RASDriver(BoxLayout):
                 return
         elif self.cl.mode == 'DEBUG':
             self.ids.button_initialize.disabled = True
-        self.create_and_start_thread_cooling()
 
         if self.cl.mode == 'RELEASE':
             ret, self.size_xdata, ypixels = self.sdk.GetDetector()
@@ -317,8 +316,10 @@ class RASDriver(BoxLayout):
         elif self.cl.mode == 'DEBUG':
             self.size_xdata = 1024
 
+        self.update_temperature()
+
     def update_temperature(self):
-        # detectorの温度を監視し、規定の温度に下がっていれば
+        # detectorの温度を監視し、規定の温度に下がっていれば準備OK
         if self.cl.mode == 'RELEASE':
             while True:
                 ret, temperature = self.sdk.GetTemperature()
