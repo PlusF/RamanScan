@@ -131,6 +131,7 @@ class RASDriver(BoxLayout):
             'integration': True,
             'accumulation': True,
             'pixel_size': True,
+            'not_busy': True,
         }
 
         self.create_graph()
@@ -264,21 +265,36 @@ class RASDriver(BoxLayout):
         self.thread_scan.daemon = True
         self.thread_scan.start()
 
-    def disable_buttons(self):
+    def disable_inputs(self):
         # 測定中はボタンを押させない
         self.ids.button_acquire.disabled = True
         self.ids.button_scan.disabled = True
         self.ids.button_set_start.disabled = True
         self.ids.button_set_goal.disabled = True
         self.ids.button_go.disabled = True
+        self.ids.move_top.disabled = True
+        self.ids.move_bottom.disabled = True
+        self.ids.move_left.disabled = True
+        self.ids.move_right.disabled = True
+        self.ids.input_pos_x.disabled = True
+        self.ids.input_pos_y.disabled = True
+        self.ids.input_integration.disabled = True
+        self.ids.input_accumulation.disabled = True
+        self.ids.input_pixel_size.disabled = True
 
-    def activate_buttons(self):
+    def activate_inputs(self):
         # 測定終了後操作を許可
         self.ids.button_acquire.disabled = False
         self.ids.button_scan.disabled = False
         self.ids.button_set_start.disabled = False
         self.ids.button_set_goal.disabled = False
         self.ids.button_go.disabled = False
+        self.ids.move_top.disabled = False
+        self.ids.move_bottom.disabled = False
+        self.ids.move_left.disabled = False
+        self.ids.move_right.disabled = False
+        self.ids.input_pos_x.disabled = False
+        self.ids.input_pos_y.disabled = False
 
     def initialize(self):
         # 初期化
@@ -529,7 +545,8 @@ class RASDriver(BoxLayout):
     def prepare_acquisition(self):
         # for GUI
         self.lineplot.points = []
-        self.disable_buttons()
+        self.disable_inputs()
+        self.validate_state_dict['not_busy'] = False
         self.ids.progress_acquire.max = self.accumulation
         self.progress_value_acquire = 0
         # for instruments
@@ -567,8 +584,9 @@ class RASDriver(BoxLayout):
         if not during_scan:  # finalize acquisition
             self.coord_x = np.array([self.current_pos[0]])
             self.coord_y = np.array([self.current_pos[1]])
-            self.activate_buttons()
+            self.activate_inputs()
             self.msg = 'Acquisition finished.'
+            self.validate_state_dict['not_busy'] = True
             self.saved_previous = False
             self.ids.button_save.disabled = False
             self.ids.button_save_as_hdf5.disabled = False
@@ -578,7 +596,7 @@ class RASDriver(BoxLayout):
         black = np.zeros([1024, 1024])
         black[0, 0] = 1
         self.contourplot.data = black
-        self.disable_buttons()
+        self.disable_inputs()
         # for instruments
         self.prepare_acquisition()
         self.com.set_speed_max()
@@ -593,7 +611,7 @@ class RASDriver(BoxLayout):
         self.coord_x, self.coord_y = np.meshgrid(arr_x, arr_y, indexing='ij')
         if self.coord_x.shape[0] == 0:
             self.error_dialog.open()
-            self.activate_buttons()
+            self.activate_inputs()
             self.check_if_ready()
             return False
         self.ids.progress_scan.max = self.coord_x.shape[0] * self.coord_x.shape[1]
@@ -625,7 +643,8 @@ class RASDriver(BoxLayout):
                 self.progress_value_scan = num_done
 
         # 終了処理
-        self.activate_buttons()
+        self.activate_inputs()
+        self.validate_state_dict['not_busy'] = True
         self.saved_previous = False
         self.ids.button_save.disabled = False
         self.ids.button_save_as_hdf5.disabled = False
@@ -688,14 +707,16 @@ class RASDriver(BoxLayout):
     def start_jogging(self, axis, direction):
         if not self.is_moving[axis][direction]:
             self.is_moving[axis][direction] = True
-            self.com.jog(axis, direction, self.jog_speed)
             self.move_widgets[axis][direction].state = 'down'
+            if axis == 1:  # x軸を反転
+                direction = '+' if direction == '-' else '-'
+            self.com.jog(axis, direction, self.jog_speed)
 
     def stop_jogging(self, axis, direction):
         if self.is_moving[axis][direction]:
             self.is_moving[axis][direction] = False
-            self.com.stop(axis)
             self.move_widgets[axis][direction].state = 'normal'
+            self.com.stop(axis)
 
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down=self._on_keyboard_down)
