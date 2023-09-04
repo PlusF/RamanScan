@@ -3,4 +3,4 @@ kivy_garden.graph==0.4.0
 numpy
 pyserial==3.5
 git+https://github.com/PlusF/SigmaKokiCommander
-git+https://github.com/PlusF/DataLoader
+git+https://github.com/PlusF/DataLoader@python3.6
