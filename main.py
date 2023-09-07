@@ -139,8 +139,6 @@ class RASDriver(BoxLayout):
             'not_busy': True,
         }
 
-        self.create_graph()
-
         self.ids.button_acquire.disabled = True
         self.ids.button_scan.disabled = True
         self.ids.button_save.disabled = True
@@ -176,6 +174,25 @@ class RASDriver(BoxLayout):
         Clock.schedule_interval(self.ask_position, self.cl.dt)
         self.create_and_start_thread_position()
 
+        self.input_widgets = [
+            self.ids.input_pos_x,
+            self.ids.input_pos_y,
+            self.ids.input_integration,
+            self.ids.input_accumulation,
+            self.ids.input_pixel_size,
+            self.ids.button_set_start,
+            self.ids.button_set_goal,
+            self.ids.button_go,
+            self.ids.button_acquire,
+            self.ids.button_scan,
+            self.ids.button_save,
+            self.ids.button_save_as_hdf5,
+            self.ids.move_top,
+            self.ids.move_bottom,
+            self.ids.move_left,
+            self.ids.move_right,
+        ]
+
         # キーボード入力も受け付けるために必要
         self.is_moving = {
             1: {
@@ -200,6 +217,8 @@ class RASDriver(BoxLayout):
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
         self._keyboard.bind(on_key_up=self._on_keyboard_up)
+
+        self.create_graph()
 
     def create_graph(self):
         # for spectrum
@@ -272,37 +291,13 @@ class RASDriver(BoxLayout):
 
     def disable_inputs(self):
         # 測定中はボタンを押させない
-        self.ids.button_acquire.disabled = True
-        self.ids.button_scan.disabled = True
-        self.ids.button_set_start.disabled = True
-        self.ids.button_set_goal.disabled = True
-        self.ids.button_go.disabled = True
-        self.ids.move_top.disabled = True
-        self.ids.move_bottom.disabled = True
-        self.ids.move_left.disabled = True
-        self.ids.move_right.disabled = True
-        self.ids.input_pos_x.disabled = True
-        self.ids.input_pos_y.disabled = True
-        self.ids.input_integration.disabled = True
-        self.ids.input_accumulation.disabled = True
-        self.ids.input_pixel_size.disabled = True
+        for widget in self.input_widgets:
+            widget.disabled = True
 
     def activate_inputs(self):
         # 測定終了後操作を許可
-        self.ids.button_acquire.disabled = False
-        self.ids.button_scan.disabled = False
-        self.ids.button_set_start.disabled = False
-        self.ids.button_set_goal.disabled = False
-        self.ids.button_go.disabled = False
-        self.ids.move_top.disabled = False
-        self.ids.move_bottom.disabled = False
-        self.ids.move_left.disabled = False
-        self.ids.move_right.disabled = False
-        self.ids.input_pos_x.disabled = False
-        self.ids.input_pos_y.disabled = False
-        self.ids.input_integration.disabled = False
-        self.ids.input_accumulation.disabled = False
-        self.ids.input_pixel_size.disabled = False
+        for widget in self.input_widgets:
+            widget.disabled = False
 
     def initialize(self):
         # 初期化
