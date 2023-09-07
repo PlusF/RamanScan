@@ -102,8 +102,10 @@
                             text: str(round(root.current_pos[0], 2))
                         Label:
                             text: str(round(root.current_pos[1], 2))
-                        Label:
-                            text:
+                        ToggleButton:
+                            id: toggle_sync
+                            text: 'Sync'
+                            state: 'down'
                     VBox:
                         Label:
                             text: 'Goal'

@@ -373,7 +373,8 @@ class RASDriver(BoxLayout):
         self.contourplot.data = signal_to_baseline.T.reshape(self.ydata.shape[:2])
 
     def ask_position(self, dt):
-        self.com.get_position()
+        if self.ids.toggle_sync.state == 'down':
+            self.com.get_position()
 
     def update_position(self):
         # 別スレッド内で動き続ける
@@ -389,7 +390,7 @@ class RASDriver(BoxLayout):
                 pos_list = list(map(lambda x: int(x) * self.com.um_per_pulse, msg.split(',')))
                 self.current_pos = np.array(pos_list)
             except ValueError:
-                print(msg)
+                print(f'could not parse response: {msg}')
                 continue
 
     def go(self, x, y):
