@@ -431,8 +431,6 @@ class RSDriver(BoxLayout):
         self.validate_state_dict[name] = True
         self.check_if_ready()
 
-        print(val, val_casted, self.pixel_size)
-
     def check_if_ready(self):
         # 全ての値が正しければacquireボタンとscanボタンを使えるように
         ok = all(self.validate_state_dict.values())
