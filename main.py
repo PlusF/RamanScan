@@ -90,7 +90,7 @@ class ErrorDialogContent(FloatLayout):
     ok = ObjectProperty(None)
 
 
-class RASDriver(BoxLayout):
+class RSDriver(BoxLayout):
     current_temperature = NumericProperty(0)
     start_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
     current_pos = ObjectProperty(np.zeros(2), force_dispatch=True)
@@ -103,7 +103,7 @@ class RASDriver(BoxLayout):
     # 積算回数
     accumulation = ObjectProperty(3)
     # 測定間隔(距離）
-    pixel_size = ObjectProperty(1)
+    pixel_size = ObjectProperty(1.0)
     # マッピング範囲
     line_y_range_1 = ObjectProperty(-10)
     line_y_range_2 = ObjectProperty(10)
@@ -359,12 +359,12 @@ class RASDriver(BoxLayout):
         map_data = self.ydata.sum(axis=2)
         # TODO: calculate x wavelength range [nm]
         self.xdata = np.arange(0, self.size_xdata, 1)
-        self.graph_contour.xmin = int(self.start_pos[0])
-        self.graph_contour.ymin = int(self.start_pos[1])
-        self.graph_contour.xmax = int(self.goal_pos[0])
-        self.graph_contour.ymax = int(self.goal_pos[1])
-        self.graph_contour.x_ticks_major = int(self.pixel_size)
-        self.graph_contour.y_ticks_major = int(self.pixel_size)
+        self.graph_contour.xmin = float(self.start_pos[0])
+        self.graph_contour.ymin = float(self.start_pos[1])
+        self.graph_contour.xmax = float(self.goal_pos[0])
+        self.graph_contour.ymax = float(self.goal_pos[1])
+        self.graph_contour.x_ticks_major = self.pixel_size
+        self.graph_contour.y_ticks_major = self.pixel_size
         self.contourplot.xrange = (self.start_pos[0], self.goal_pos[0])
         self.contourplot.yrange = (self.start_pos[1], self.goal_pos[1])
         signal_to_baseline = subtract_baseline(self.xdata, map_data, self.map_range_1, self.map_range_2)
@@ -421,7 +421,7 @@ class RASDriver(BoxLayout):
         # 数値の範囲を確認
         if validate(val_casted):
             self.msg_general = f'Set {name}.'
-            exec("self.%s = %d" % (name, val_casted))
+            exec(f'self.{name} = {val_casted}')
         else:
             self.msg_general = f'Invalid value at {name}.'
             return
@@ -430,6 +430,8 @@ class RASDriver(BoxLayout):
             raise KeyError(f'key: {name} does not exist in validate_state_dict')
         self.validate_state_dict[name] = True
         self.check_if_ready()
+
+        print(val, val_casted, self.pixel_size)
 
     def check_if_ready(self):
         # 全ての値が正しければacquireボタンとscanボタンを使えるように
@@ -637,8 +639,12 @@ class RASDriver(BoxLayout):
         time.sleep(distance / self.com.max_speed + 1)
 
         # 座標計算
+        print(self.pixel_size)
         arr_x = np.arange(self.start_pos[0], self.goal_pos[0], self.pixel_size)
         arr_y = np.arange(self.start_pos[1], self.goal_pos[1], self.pixel_size)
+        self.goal_pos[0] = arr_x[-1]
+        self.goal_pos[1] = arr_y[-1]
+        self.msg_general = f'{arr_x.shape[0]} x {arr_y.shape[0]} = {arr_x.shape[0] * arr_y.shape[0]} points. The goal was set at {self.goal_pos}'
         self.coord_x, self.coord_y = np.meshgrid(arr_x, arr_y, indexing='ij')
         if self.coord_x.shape[0] == 0:
             self.error_dialog.open()
@@ -776,11 +782,11 @@ class RASDriver(BoxLayout):
             self.ser.close()
 
 
-class RASApp(App):
+class RSApp(App):
     def build(self):
-        self.driver = RASDriver()
+        self.driver = RSDriver()
         return self.driver
 
 
 if __name__ == '__main__':
-    RASApp().run()
+    RSApp().run()

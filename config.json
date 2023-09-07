@@ -5,5 +5,5 @@
   "BAUDRATE": 9600,
   "TEMPERATURE": -64,
   "FOLDER": "C:\\Users\\Raman\\Desktop\\Scan",
-  "COSMICRAYREMOVAL": true
+  "COSMICRAYREMOVAL": false
 }
