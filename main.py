@@ -639,11 +639,9 @@ class RSDriver(BoxLayout):
         time.sleep(distance / self.com.max_speed + 1)
 
         # 座標計算
-        print(self.pixel_size)
         arr_x = np.arange(self.start_pos[0], self.goal_pos[0], self.pixel_size)
         arr_y = np.arange(self.start_pos[1], self.goal_pos[1], self.pixel_size)
-        self.goal_pos[0] = arr_x[-1]
-        self.goal_pos[1] = arr_y[-1]
+        self.goal_pos = np.array([arr_x[-1], arr_y[-1]])
         self.msg_general = f'{arr_x.shape[0]} x {arr_y.shape[0]} = {arr_x.shape[0] * arr_y.shape[0]} points. The goal was set at {self.goal_pos}'
         self.coord_x, self.coord_y = np.meshgrid(arr_x, arr_y, indexing='ij')
         if self.coord_x.shape[0] == 0:
