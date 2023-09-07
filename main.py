@@ -50,7 +50,8 @@ def generate_fake_data(size):
     return spec
 
 
-def classify_key(key):
+def classify_key(keycode):
+    key = keycode[1]
     if key in ['a', 'left']:
         axis = 1
         direction = '-'
@@ -109,7 +110,8 @@ class RASDriver(BoxLayout):
     # マッピング範囲
     map_range_1 = ObjectProperty(0)
     map_range_2 = ObjectProperty(100)
-    msg = StringProperty('Please initialize the detector.')
+    msg_important = StringProperty('Please initialize the detector.')
+    msg_general = StringProperty('')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -216,7 +218,7 @@ class RASDriver(BoxLayout):
         self.graph_contour = Graph(
             xlabel='x [um]', ylabel='y [um]',
             xmin=0, xmax=10, ymin=0, ymax=10,
-            x_ticks_major=10, x_ticks_minor=1, y_ticks_major=5,
+            x_ticks_major=5, y_ticks_major=5,
             x_grid_label=True, y_grid_label=True,
         )
         self.ids.graph_contour.add_widget(self.graph_contour)
@@ -298,17 +300,23 @@ class RASDriver(BoxLayout):
         self.ids.move_right.disabled = False
         self.ids.input_pos_x.disabled = False
         self.ids.input_pos_y.disabled = False
+        self.ids.input_integration.disabled = False
+        self.ids.input_accumulation.disabled = False
+        self.ids.input_pixel_size.disabled = False
 
     def initialize(self):
         # 初期化
+        self.msg_important = 'Initializing...'
+        self.ids.button_initialize.disabled = True
         if self.cl.mode == 'RELEASE':
             if self.sdk.Initialize('') == atmcd_errors.Error_Codes.DRV_SUCCESS:
                 self.ids.button_initialize.disabled = True
-                self.msg = 'Successfully initialized. Now cooling...'
+                self.msg_important = 'Successfully initialized. Now cooling...'
                 self.sdk.SetTemperature(self.cl.temperature)
                 self.sdk.CoolerON()
             else:
-                self.msg = 'Initialization failed.'
+                self.msg_important = 'Initialization failed.'
+                self.ids.button_initialize.disabled = False
                 return
         elif self.cl.mode == 'DEBUG':
             self.ids.button_initialize.disabled = True
@@ -332,7 +340,7 @@ class RASDriver(BoxLayout):
                 time.sleep(self.cl.dt)
         elif self.cl.mode == 'DEBUG':
             self.current_temperature = self.cl.temperature
-        self.msg = 'Cooling finished.'
+        self.msg_important = 'Cooling finished.'
         self.validate_state_dict['temperature'] = True
         self.check_if_ready()
 
@@ -393,7 +401,7 @@ class RASDriver(BoxLayout):
         try:
             pos = list(map(float, [x, y]))
         except ValueError:
-            self.msg = 'invalid value.'
+            self.msg_general = 'invalid value.'
             return
 
         if self.cl.mode == 'RELEASE':
@@ -411,15 +419,15 @@ class RASDriver(BoxLayout):
         try:
             val_casted = dtype(val)
         except ValueError:
-            self.msg = f'Invalid value at {name}.'
+            self.msg_general = f'Invalid value at {name}.'
             return
 
         # 数値の範囲を確認
         if validate(val_casted):
-            self.msg = f'Set {name}.'
+            self.msg_general = f'Set {name}.'
             exec("self.%s = %d" % (name, val_casted))
         else:
-            self.msg = f'Invalid value at {name}.'
+            self.msg_general = f'Invalid value at {name}.'
             return
 
         if name not in self.validate_state_dict:
@@ -589,6 +597,8 @@ class RASDriver(BoxLayout):
     def acquire(self, during_scan=False, i=0, j=0):
         ydata = np.empty([0, self.size_xdata])
         for k in range(self.accumulation):
+            if not during_scan:
+                self.msg_important = f'Acquisition {k + 1} of {self.accumulation}...'
             if self.cl.mode == 'RELEASE':
                 self.sdk.handle_return(self.sdk.StartAcquisition())
                 self.sdk.handle_return(self.sdk.WaitForAcquisition())
@@ -610,7 +620,7 @@ class RASDriver(BoxLayout):
             self.coord_x = np.array([self.current_pos[0]])
             self.coord_y = np.array([self.current_pos[1]])
             self.activate_inputs()
-            self.msg = 'Acquisition finished.'
+            self.msg_important = 'Acquisition finished.'
             self.validate_state_dict['not_busy'] = True
             self.saved_previous = False
             self.ids.button_save.disabled = False
@@ -652,7 +662,7 @@ class RASDriver(BoxLayout):
         for i, (col_x, col_y) in enumerate(zip(self.coord_x, self.coord_y)):
             for j, coord in enumerate(zip(col_x, col_y)):
                 time_left = np.ceil((num_pos - num_done) * (self.integration * self.accumulation) / 60)
-                self.msg = f'Acquisition {num_done + 1} of {num_pos}... {time_left} minutes left.'
+                self.msg_important = f'Scan {num_done + 1} of {num_pos}... {time_left} minutes left.'
 
                 if self.cl.mode == 'RELEASE':
                     self.com.move_absolute(coord)
@@ -673,7 +683,7 @@ class RASDriver(BoxLayout):
         self.saved_previous = False
         self.ids.button_save.disabled = False
         self.ids.button_save_as_hdf5.disabled = False
-        self.msg = 'Scan finished.'
+        self.msg_important = 'Scan finished.'
 
     def save(self, folder, filename):
         filename = os.path.basename(filename)
@@ -694,11 +704,7 @@ class RASDriver(BoxLayout):
                     for y in accumulated_y:
                         f.write(','.join(y.astype(str)) + '\n')
 
-        self.save_dialog.dismiss()
-        self.saved_previous = True
-        self.save_dialog.folder = folder
-        self.save_as_hdf5_dialog.folder = folder
-        self.msg = f'Successfully saved to "{os.path.join(folder, filename)}".'
+        self.finalize_save_dialog(folder, filename)
 
     def save_as_hdf5(self, folder, filename):
         filename = os.path.basename(filename)
@@ -723,11 +729,14 @@ class RASDriver(BoxLayout):
         writer.create_dataset('spectra', self.ydata)
         writer.close()
 
+        self.finalize_save_dialog(folder, filename)
+
+    def finalize_save_dialog(self, folder, filename):
         self.save_as_hdf5_dialog.dismiss()
         self.saved_previous = True
         self.save_dialog.folder = folder
         self.save_as_hdf5_dialog.folder = folder
-        self.msg = f'Successfully saved to "{os.path.join(folder, filename)}".'
+        self.msg_important = f'Successfully saved to "{os.path.join(folder, filename)}".'
 
     def start_jogging(self, axis, direction):
         if not self.is_moving[axis][direction]:
@@ -748,15 +757,19 @@ class RASDriver(BoxLayout):
         self._keyboard = None
 
     def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-        key = keycode[1]
-        axis, direction = classify_key(key)
+        if self.validate_state_dict['not_busy'] is False:
+            self.msg_general = 'Busy. Wait until the end.'
+            return
+        axis, direction = classify_key(keycode)
         if axis is None:
             return
         self.start_jogging(axis, direction)
 
     def _on_keyboard_up(self, keyboard, keycode):
-        key = keycode[1]
-        axis, direction = classify_key(key)
+        if self.validate_state_dict['not_busy'] is False:
+            self.msg_general = 'Busy. Wait until the end.'
+            return
+        axis, direction = classify_key(keycode)
         if axis is None:
             return
         self.stop_jogging(axis, direction)
