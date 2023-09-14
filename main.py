@@ -755,20 +755,20 @@ class RSDriver(BoxLayout):
         self._keyboard = None
 
     def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-        if self.validate_state_dict['not_busy'] is False:
-            self.msg_general = 'Busy. Wait until the end.'
-            return
         axis, direction = classify_key(keycode)
         if axis is None:
+            return
+        if self.validate_state_dict['not_busy'] is False:
+            self.msg_general = 'Busy. Wait until the end.'
             return
         self.start_jogging(axis, direction)
 
     def _on_keyboard_up(self, keyboard, keycode):
-        if self.validate_state_dict['not_busy'] is False:
-            self.msg_general = 'Busy. Wait until the end.'
-            return
         axis, direction = classify_key(keycode)
         if axis is None:
+            return
+        if self.validate_state_dict['not_busy'] is False:
+            self.msg_general = 'Busy. Wait until the end.'
             return
         self.stop_jogging(axis, direction)
 
