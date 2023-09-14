@@ -18,7 +18,7 @@ if os.name == 'nt':
 else:  # Macで開発する際エラーが出ないようにする
     atmcd = atmcd_codes = atmcd_errors = None
 import numpy as np
-from dataloader import RamanHDFWriter
+from dataloader import RamanHDFWriter, DataLoader
 import datetime
 import time
 import serial
@@ -125,7 +125,7 @@ class RSDriver(BoxLayout):
             if not os.path.exists(self.folder):
                 os.mkdir(self.folder)
 
-        self.xdata = np.array([])
+        self.xdata = DataLoader('./default_xdata.asc').spec_dict['./default_xdata.asc'].xdata
         self.ydata = np.array([])
         self.coord_x = np.array([])
         self.coord_y = np.array([])
@@ -224,8 +224,8 @@ class RSDriver(BoxLayout):
         # for spectrum
         self.graph_line = Graph(
             xlabel='Pixel number', ylabel='Counts',
-            xmin=0, xmax=1023, ymin=0, ymax=1023,
-            x_ticks_major=100, x_ticks_minor=2, y_ticks_major=200,
+            xmin=float(self.xdata.min()), xmax=float(self.xdata.max()), ymin=0, ymax=2000,
+            x_ticks_major=500, x_ticks_minor=5,
             x_grid_label=True, y_grid_label=True,
         )
         self.ids.graph_line.add_widget(self.graph_line)
@@ -344,7 +344,6 @@ class RSDriver(BoxLayout):
         if self.cl.cosmic_ray_removal:
             ydata = remove_cosmic_ray(ydata)
 
-        self.xdata = np.arange(0, self.size_xdata, 1)
         self.lineplot.points = [(x, y) for x, y in zip(self.xdata, ydata)]
         self.graph_line.xmin = float(np.min(self.xdata))
         self.graph_line.xmax = float(np.max(self.xdata))
@@ -358,7 +357,6 @@ class RSDriver(BoxLayout):
         # マップを表示
         map_data = self.ydata.sum(axis=2)
         # TODO: calculate x wavelength range [nm]
-        self.xdata = np.arange(0, self.size_xdata, 1)
         self.graph_contour.xmin = float(self.start_pos[0])
         self.graph_contour.ymin = float(self.start_pos[1])
         self.graph_contour.xmax = float(self.goal_pos[0])
