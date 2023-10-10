@@ -166,7 +166,7 @@ class RSDriver(BoxLayout):
         self.error_dialog = Popup(
             title="Error",
             content=ErrorDialogContent(
-                message='Check the condition again.',
+                message='Check the condition again.\nThe start position must be smaller than the goal position.',
                 ok=lambda: self.error_dialog.dismiss(),
             ),
             size_hint=(0.4, 0.4)
@@ -358,10 +358,20 @@ class RSDriver(BoxLayout):
             return
         # マップを表示
         map_data = self.ydata.sum(axis=2)
+        graph_size_x, graph_size_y = self.ids.graph_contour.size
+        map_size_x, map_size_y = self.goal_pos - self.start_pos
+        xy_ratio_graph = graph_size_x / graph_size_y
+        xy_ratio_map = map_size_x / map_size_y
+        if xy_ratio_graph > xy_ratio_map:
+            # グラフの方が横長
+            map_size_x = map_size_y * xy_ratio_graph
+        else:
+            # グラフの方が縦長
+            map_size_y = map_size_x / xy_ratio_graph
         self.graph_contour.xmin = float(self.start_pos[0])
         self.graph_contour.ymin = float(self.start_pos[1])
-        self.graph_contour.xmax = float(self.goal_pos[0])
-        self.graph_contour.ymax = float(self.goal_pos[1])
+        self.graph_contour.xmax = float(self.start_pos[0] + map_size_x)
+        self.graph_contour.ymax = float(self.start_pos[1] + map_size_y)
         self.graph_contour.x_ticks_major = self.pixel_size
         self.graph_contour.y_ticks_major = self.pixel_size
         self.contourplot.xrange = (self.start_pos[0], self.goal_pos[0])
@@ -536,6 +546,9 @@ class RSDriver(BoxLayout):
         self.confirm_acquire_condition()
 
     def scan_clicked(self):
+        if self.start_pos[0] >= self.goal_pos[0] or self.start_pos[1] >= self.goal_pos[1]:
+            self.error_dialog.open()
+            return
         if not self.saved_previous:
             # 直前のデータが保存されていない場合確認ダイアログを出す
             self.create_yesno_dialog(
@@ -550,8 +563,11 @@ class RSDriver(BoxLayout):
         return 'Integration: {} sec\nAccumulation: {}'.format(self.integration, self.accumulation)
 
     def get_condition_str_scan(self):
-        return 'Integration: {} sec\nAccumulation: {}\nPixel size: {}'.format(
-            self.integration, self.accumulation, self.pixel_size
+        arr_x = np.arange(self.start_pos[0], self.goal_pos[0], self.pixel_size)
+        arr_y = np.arange(self.start_pos[1], self.goal_pos[1], self.pixel_size)
+        duration = np.ceil((arr_x.shape[0] * arr_y.shape[0]) * (self.integration * self.accumulation) / 60)
+        return 'Integration: {} sec\nAccumulation: {}\nPixel size: {} um\nDuration: {} min'.format(
+            self.integration, self.accumulation, self.pixel_size, duration
         )
 
     def confirm_acquire_condition(self):
@@ -656,8 +672,7 @@ class RSDriver(BoxLayout):
         arr_y = np.arange(self.start_pos[1], self.goal_pos[1], self.pixel_size)
         self.goal_pos = np.array([arr_x[-1], arr_y[-1]])
         self.msg_general = (f'{arr_x.shape[0]} x {arr_y.shape[0]} = {arr_x.shape[0] * arr_y.shape[0]} points. '
-                            f'The goal was set at {self.goal_pos}'
-                            f'It will take {np.ceil((arr_x.shape[0] * arr_y.shape[0]) * (self.integration * self.accumulation) / 60)} minutes.')
+                            f'The goal was set at {self.goal_pos}')
         self.coord_x, self.coord_y = np.meshgrid(arr_x, arr_y, indexing='ij')
         if self.coord_x.shape[0] == 0:
             self.error_dialog.open()
