@@ -638,7 +638,9 @@ class RSDriver(BoxLayout):
         arr_x = np.arange(self.start_pos[0], self.goal_pos[0], self.pixel_size)
         arr_y = np.arange(self.start_pos[1], self.goal_pos[1], self.pixel_size)
         self.goal_pos = np.array([arr_x[-1], arr_y[-1]])
-        self.msg_general = f'{arr_x.shape[0]} x {arr_y.shape[0]} = {arr_x.shape[0] * arr_y.shape[0]} points. The goal was set at {self.goal_pos}'
+        self.msg_general = (f'{arr_x.shape[0]} x {arr_y.shape[0]} = {arr_x.shape[0] * arr_y.shape[0]} points. '
+                            f'The goal was set at {self.goal_pos}'
+                            f'It will take {np.ceil((arr_x.shape[0] * arr_y.shape[0]) * (self.integration * self.accumulation) / 60)} minutes.')
         self.coord_x, self.coord_y = np.meshgrid(arr_x, arr_y, indexing='ij')
         if self.coord_x.shape[0] == 0:
             self.error_dialog.open()
