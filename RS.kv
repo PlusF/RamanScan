@@ -270,6 +270,19 @@
             VBox:
                 BoxLayout:
                     id: graph_line
+                # xレンジ設定
+                HBox:
+                    size_hint_y: 0.06
+                    Label:
+                        text: 'x axis range'
+                    BasicTextInput:
+                        id: input_line_x_range_1
+                        text: str(root.line_x_range_1)
+                        on_text: root.set_line_x_range(input_line_x_range_1.text, input_line_x_range_2.text)
+                    BasicTextInput:
+                        id: input_line_x_range_2
+                        text: str(root.line_x_range_2)
+                        on_text: root.set_line_x_range(input_line_x_range_1.text, input_line_x_range_2.text)
                 # yレンジ設定
                 HBox:
                     size_hint_y: 0.06

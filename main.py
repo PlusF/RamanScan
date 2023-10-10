@@ -104,12 +104,14 @@ class RSDriver(BoxLayout):
     accumulation = ObjectProperty(3)
     # 測定間隔(距離）
     pixel_size = ObjectProperty(1.0)
+    # スペクトル範囲
+    line_x_range_1 = ObjectProperty(-209)
+    line_x_range_2 = ObjectProperty(2102)
+    line_y_range_1 = ObjectProperty(0)
+    line_y_range_2 = ObjectProperty(10000)
     # マッピング範囲
-    line_y_range_1 = ObjectProperty(-10)
-    line_y_range_2 = ObjectProperty(10)
-    # マッピング範囲
-    map_range_1 = ObjectProperty(0)
-    map_range_2 = ObjectProperty(100)
+    map_range_1 = ObjectProperty(1570)
+    map_range_2 = ObjectProperty(1610)
     msg_important = StringProperty('Please initialize the detector.')
     msg_general = StringProperty('')
 
@@ -126,7 +128,7 @@ class RSDriver(BoxLayout):
                 os.mkdir(self.folder)
 
         self.xdata = DataLoader('./default_xdata.asc').spec_dict['./default_xdata.asc'].xdata
-        self.ydata = np.array([])
+        self.ydata = np.ones([1, 1, 1, len(self.xdata)])
         self.coord_x = np.array([])
         self.coord_y = np.array([])
 
@@ -226,6 +228,7 @@ class RSDriver(BoxLayout):
             xlabel='Pixel number', ylabel='Counts',
             xmin=float(self.xdata.min()), xmax=float(self.xdata.max()), ymin=0, ymax=2000,
             x_ticks_major=500, x_ticks_minor=5,
+            y_ticks_major=500, y_ticks_minor=5,
             x_grid_label=True, y_grid_label=True,
         )
         self.ids.graph_line.add_widget(self.graph_line)
@@ -345,18 +348,16 @@ class RSDriver(BoxLayout):
             ydata = remove_cosmic_ray(ydata)
 
         self.lineplot.points = [(x, y) for x, y in zip(self.xdata, ydata)]
-        self.graph_line.xmin = float(np.min(self.xdata))
-        self.graph_line.xmax = float(np.max(self.xdata))
+        self.graph_line.xmin = float(self.line_x_range_1)
+        self.graph_line.xmax = float(self.line_x_range_2)
         self.graph_line.ymin = float(self.line_y_range_1)
         self.graph_line.ymax = float(self.line_y_range_2)
-        self.graph_line.y_ticks_major = float(np.max(ydata) - np.min(ydata)) / 5
 
     def update_graph_contour(self):
         if len(self.ydata.shape) != 4:
             return
         # マップを表示
         map_data = self.ydata.sum(axis=2)
-        # TODO: calculate x wavelength range [nm]
         self.graph_contour.xmin = float(self.start_pos[0])
         self.graph_contour.ymin = float(self.start_pos[1])
         self.graph_contour.xmax = float(self.goal_pos[0])
@@ -463,6 +464,22 @@ class RSDriver(BoxLayout):
             dtype=float,
             validate=lambda x: x > 0.1
         )
+
+    def set_line_x_range(self, line_x_range_1: str, line_x_range_2: str):
+        self.set_param(
+            name='line_x_range_1',
+            val=line_x_range_1,
+            dtype=float,
+            validate=lambda x: True
+        )
+        self.set_param(
+            name='line_x_range_2',
+            val=line_x_range_2,
+            dtype=float,
+            validate=lambda x: True
+        )
+        if self.line_x_range_1 < self.line_x_range_2:
+            self.update_graph_line(self.ydata.sum(axis=2)[0, 0, :] / self.accumulation)
 
     def set_line_y_range(self, line_y_range_1: str, line_y_range_2: str):
         self.set_param(
