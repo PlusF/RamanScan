@@ -131,6 +131,7 @@ class RSDriver(BoxLayout):
         self.ydata = np.ones([1, 1, 1, len(self.xdata)])
         self.coord_x = np.array([])
         self.coord_y = np.array([])
+        self.last_ij = (0, 0)
 
         # 測定開始可能かどうかのフラグ
         self.validate_state_dict = {
@@ -489,7 +490,8 @@ class RSDriver(BoxLayout):
             validate=lambda x: True
         )
         if self.line_x_range_1 < self.line_x_range_2:
-            self.update_graph_line(self.ydata.sum(axis=2)[0, 0, :] / self.accumulation)
+            last_ydata = self.ydata.sum(axis=2)[self.last_ij[0], self.last_ij[1], :] / self.accumulation
+            self.update_graph_line(last_ydata)
 
     def set_line_y_range(self, line_y_range_1: str, line_y_range_2: str):
         self.set_param(
@@ -505,7 +507,8 @@ class RSDriver(BoxLayout):
             validate=lambda x: True
         )
         if self.line_y_range_1 < self.line_y_range_2:
-            self.update_graph_line(self.ydata.sum(axis=2)[0, 0, :] / self.accumulation)
+            last_ydata = self.ydata.sum(axis=2)[self.last_ij[0], self.last_ij[1], :] / self.accumulation
+            self.update_graph_line(last_ydata)
 
     def set_map_range(self, map_range_1: str, map_range_2: str):
         self.set_param(
@@ -641,7 +644,7 @@ class RSDriver(BoxLayout):
 
             self.progress_value_acquire = k + 1
 
-        self.ydata[i, j] = ydata
+            self.ydata[i, j] = ydata  # line graphのx, y range変更時に使うために保存
 
         if not during_scan:  # finalize acquisition
             self.coord_x = np.array([self.current_pos[0]])
@@ -680,7 +683,9 @@ class RSDriver(BoxLayout):
             self.check_if_ready()
             return False
         self.ids.progress_scan.max = self.coord_x.shape[0] * self.coord_x.shape[1]
-        
+
+        # set_line_x_range, set_line_y_rangeで使う
+        self.last_ij = (0, 0)
         # データ格納用numpy配列用意
         self.ydata = np.zeros([*self.coord_x.shape, self.accumulation, self.size_xdata])
 
@@ -704,6 +709,7 @@ class RSDriver(BoxLayout):
                 self.acquire(during_scan=True, i=i, j=j)
                 self.update_graph_contour()
 
+                self.last_ij = (i, j)
                 num_done += 1
                 self.progress_value_scan = num_done
 
