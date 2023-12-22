@@ -490,7 +490,7 @@ class RSDriver(BoxLayout):
             validate=lambda x: True
         )
         if self.line_x_range_1 < self.line_x_range_2:
-            last_ydata = self.ydata.sum(axis=2)[self.last_ij[0], self.last_ij[1], :] / self.accumulation
+            last_ydata = self.ydata.sum(axis=2)[self.last_ij[0], self.last_ij[1], :]
             self.update_graph_line(last_ydata)
 
     def set_line_y_range(self, line_y_range_1: str, line_y_range_2: str):
@@ -507,7 +507,7 @@ class RSDriver(BoxLayout):
             validate=lambda x: True
         )
         if self.line_y_range_1 < self.line_y_range_2:
-            last_ydata = self.ydata.sum(axis=2)[self.last_ij[0], self.last_ij[1], :] / self.accumulation
+            last_ydata = self.ydata.sum(axis=2)[self.last_ij[0], self.last_ij[1], :]
             self.update_graph_line(last_ydata)
 
     def set_map_range(self, map_range_1: str, map_range_2: str):
@@ -625,7 +625,7 @@ class RSDriver(BoxLayout):
         self.ydata = np.zeros([1, 1, self.accumulation, self.size_xdata])
 
     def acquire(self, during_scan=False, i=0, j=0):
-        ydata = np.empty([0, self.size_xdata])
+        ydata = np.empty([self.accumulation, self.size_xdata])
         for k in range(self.accumulation):
             if not during_scan:
                 self.msg_important = f'Acquisition {k + 1} of {self.accumulation}...'
@@ -633,13 +633,13 @@ class RSDriver(BoxLayout):
                 self.sdk.handle_return(self.sdk.StartAcquisition())
                 self.sdk.handle_return(self.sdk.WaitForAcquisition())
                 ret, spec, first, last = self.sdk.GetImages16(1, 1, self.size_xdata)
-                ydata = np.append(ydata, np.array([spec]), axis=0)
+                ydata[k] = np.array([spec])
                 self.sdk.handle_return(ret)
             elif self.cl.mode == 'DEBUG':
                 time.sleep(self.integration)
                 print(f'acquired {k + 1}')
                 spec = generate_fake_data(self.size_xdata)
-                ydata = np.append(ydata, np.array(spec), axis=0)
+                ydata[k] = np.array([spec])
             self.update_graph_line(ydata.sum(axis=0))  # show accumulated spectrum
 
             self.progress_value_acquire = k + 1
