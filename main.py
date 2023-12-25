@@ -625,7 +625,7 @@ class RSDriver(BoxLayout):
         self.ydata = np.zeros([1, 1, self.accumulation, self.size_xdata])
 
     def acquire(self, during_scan=False, i=0, j=0):
-        ydata = np.empty([self.accumulation, self.size_xdata])
+        ydata = np.zeros([self.accumulation, self.size_xdata])
         for k in range(self.accumulation):
             if not during_scan:
                 self.msg_important = f'Acquisition {k + 1} of {self.accumulation}...'
