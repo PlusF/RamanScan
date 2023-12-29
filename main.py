@@ -623,6 +623,8 @@ class RSDriver(BoxLayout):
             print('prepare acquisition')
 
         self.ydata = np.zeros([1, 1, self.accumulation, self.size_xdata])
+        # set_line_x_range, set_line_y_rangeで使う
+        self.last_ij = (0, 0)
 
     def acquire(self, during_scan=False, i=0, j=0):
         ydata = np.zeros([self.accumulation, self.size_xdata])
@@ -684,8 +686,6 @@ class RSDriver(BoxLayout):
             return False
         self.ids.progress_scan.max = self.coord_x.shape[0] * self.coord_x.shape[1]
 
-        # set_line_x_range, set_line_y_rangeで使う
-        self.last_ij = (0, 0)
         # データ格納用numpy配列用意
         self.ydata = np.zeros([*self.coord_x.shape, self.accumulation, self.size_xdata])
 
