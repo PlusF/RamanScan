@@ -312,6 +312,15 @@
                         id: input_map_range_2
                         text: str(root.map_range_2)
                         on_text: root.set_map_range(input_map_range_1.text, input_map_range_2.text)
+                HBox:
+                    size_hint_y: 0.06
+                    Label:
+                        text: ''
+                        size_hint_x: 0.5
+                    Button:
+                        id: button_show_map_in_matplotlib
+                        text: 'View map in matplotlib'
+                        on_release: root.show_map_in_matplotlib()
 
         Label:
             text: root.msg_important

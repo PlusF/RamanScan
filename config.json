@@ -4,6 +4,5 @@
   "PORT": 4,
   "BAUDRATE": 9600,
   "TEMPERATURE": -64,
-  "FOLDER": "C:\\Users\\Raman\\Desktop\\Scan",
-  "COSMICRAYREMOVAL": false
+  "FOLDER": "C:\\Users\\Raman\\Desktop\\Scan"
 }

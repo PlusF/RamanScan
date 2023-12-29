@@ -11,6 +11,8 @@ Config.set('graphics', 'height', '600')
 from kivy.core.window import Window
 from sigmakokicommander import SC101GCommander
 from CircularProgressBar import CircularProgressBar
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 
 import os
 if os.name == 'nt':
@@ -24,30 +26,7 @@ import time
 import serial
 import threading
 from ConfigLoader import ConfigLoader
-from utils import remove_cosmic_ray
-
-
-def subtract_baseline(xdata: np.ndarray, ydata: np.ndarray, map_range_1: float, map_range_2: float):
-    map_range_idx = (map_range_1 <= xdata) & (xdata <= map_range_2)
-    ydata = ydata[:, :, map_range_idx]
-    if ydata.shape[2] == 0:
-        return None
-
-    def sub(arr):
-        baseline = np.linspace(arr[0], arr[-1], arr.shape[0])
-        return ydata - baseline
-
-    ydata = np.array([[sub(d).sum() for d in dat] for dat in ydata])
-    return ydata
-
-
-def generate_fake_data(size):
-    spec = np.expand_dims(np.sin(np.linspace(-np.pi, np.pi, size)), axis=0) * np.random.randint(1, 10)
-    noise = np.random.random(size) * 10
-    cosmic_ray = np.zeros(size)
-    cosmic_ray[np.random.randint(0, size)] = 100
-    spec += noise + cosmic_ray
-    return spec
+from utils import subtract_baseline, generate_fake_data
 
 
 def classify_key(keycode):
@@ -345,9 +324,6 @@ class RSDriver(BoxLayout):
 
     def update_graph_line(self, ydata):
         # スペクトルを表示
-        if self.cl.cosmic_ray_removal:
-            ydata = remove_cosmic_ray(ydata)
-
         self.lineplot.points = [(x, y) for x, y in zip(self.xdata, ydata)]
         self.graph_line.xmin = float(self.line_x_range_1)
         self.graph_line.xmax = float(self.line_x_range_2)
@@ -381,6 +357,19 @@ class RSDriver(BoxLayout):
         if signal_to_baseline is None:
             return
         self.contourplot.data = signal_to_baseline.T.reshape(self.ydata.shape[:2])
+
+    def show_map_in_matplotlib(self) -> None:
+        extent_mapping = (
+            self.start_pos[0], self.goal_pos[0] + self.pixel_size,
+            self.start_pos[1], self.goal_pos[1] + self.pixel_size)
+        map_data = self.ydata.mean(axis=2).transpose(1, 0, 2)
+        data = subtract_baseline(self.xdata, map_data, self.map_range_1, self.map_range_2)
+        if data is None:
+            return
+        vmin = data.min()
+        vmax = data.max()
+        plt.imshow(data, alpha=0.9, extent=extent_mapping, origin='lower', cmap='hot', norm=Normalize(vmin=vmin, vmax=vmax))
+        plt.show()
 
     def ask_position(self, dt):
         if self.ids.toggle_sync.state == 'down':

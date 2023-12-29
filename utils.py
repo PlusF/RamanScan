@@ -30,3 +30,26 @@ def remove_cosmic_ray(spectrum: np.ndarray, width: int = 3, threshold: float = 7
         for spec in spectrum:
             data_removed.append(remove_cosmic_ray_1d(spec, width, threshold))
         return np.array(data_removed)
+
+
+def subtract_baseline(xdata: np.ndarray, ydata: np.ndarray, map_range_1: float, map_range_2: float):
+    map_range_idx = (map_range_1 <= xdata) & (xdata <= map_range_2)
+    ydata = ydata[:, :, map_range_idx]
+    if ydata.shape[2] == 0:
+        return None
+
+    def sub(arr):
+        baseline = np.linspace(arr[0], arr[-1], arr.shape[0])
+        return ydata - baseline
+
+    ydata = np.array([[sub(d).sum() for d in dat] for dat in ydata])
+    return ydata
+
+
+def generate_fake_data(size):
+    spec = np.expand_dims(np.sin(np.linspace(-np.pi, np.pi, size)), axis=0) * np.random.randint(1, 10)
+    noise = np.random.random(size) * 10
+    cosmic_ray = np.zeros(size)
+    cosmic_ray[np.random.randint(0, size)] = 100
+    spec += noise + cosmic_ray
+    return spec
