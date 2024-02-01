@@ -715,6 +715,17 @@ class RSDriver(BoxLayout):
         if '.txt' not in filename:
             filename += '.txt'
 
+        i = 1
+        while True:
+            if os.path.exists(os.path.join(folder, filename)):
+                if i == 1:
+                    filename = filename.replace('.txt', f'_{i}.txt')
+                else:
+                    filename = filename.replace(f'_{i - 1}.txt', f'_{i}.txt')
+                i += 1
+            else:
+                break
+
         with open(os.path.join(folder, filename), 'w') as f:
             now = datetime.datetime.now()
             f.write(f'# time: {now.strftime("%Y-%m-%d-%H-%M")}\n')
@@ -736,18 +747,29 @@ class RSDriver(BoxLayout):
         if '.hdf5' not in filename:
             filename += '.hdf5'
 
+        i = 1
+        while True:
+            if os.path.exists(os.path.join(folder, filename)):
+                if i == 1:
+                    filename = filename.replace('.txt', f'_{i}.txt')
+                else:
+                    filename = filename.replace(f'_{i - 1}.txt', f'_{i}.txt')
+                i += 1
+            else:
+                break
+
         writer = RamanHDFWriter(os.path.join(folder, filename))
         writer.create_attr('time', datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
         writer.create_attr('integration', self.integration)
         writer.create_attr('accumulation', self.accumulation)
         writer.create_attr('pixel_size', self.pixel_size)
         writer.create_attr('shape', self.coord_x.shape)
-        writer.create_attr('x_start', self.start_pos[0])
-        writer.create_attr('y_start', self.start_pos[1])
+        writer.create_attr('x_start', self.start_pos[0] - self.pixel_size / 2)
+        writer.create_attr('y_start', self.start_pos[1] - self.pixel_size / 2)
         writer.create_attr('x_pad', self.pixel_size)
         writer.create_attr('y_pad', self.pixel_size)
-        writer.create_attr('x_span', self.goal_pos[0] - self.start_pos[0])
-        writer.create_attr('y_span', self.goal_pos[1] - self.start_pos[1])
+        writer.create_attr('x_span', self.goal_pos[0] - self.start_pos[0] + self.pixel_size)
+        writer.create_attr('y_span', self.goal_pos[1] - self.start_pos[1] + self.pixel_size)
         writer.create_dataset('pos_x', self.coord_x)
         writer.create_dataset('pos_y', self.coord_y)
         writer.create_dataset('xdata', self.xdata)
@@ -757,6 +779,7 @@ class RSDriver(BoxLayout):
         self.finalize_save_dialog(folder, filename)
 
     def finalize_save_dialog(self, folder, filename):
+        self.save_dialog.dismiss()
         self.save_as_hdf5_dialog.dismiss()
         self.saved_previous = True
         self.save_dialog.folder = folder
